@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vertical Endless Carousel</title>
+    <link rel="stylesheet" href="cursor.css">
     <style>
         /* Custom Font Import */
         @font-face {
@@ -156,6 +157,9 @@
     </style>
 </head>
 <body>
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+    <script src="cursor.js" defer></script>
 
     <div class="carousel-container">
                 <div class="carousel-overlay-text">Print Editions</div>
@@ -229,5 +233,7 @@
     </div>
     </div>
 
+    <script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script>
+    <script src="https://unpkg.com/gsap@3/dist/ScrollTrigger.min.js"></script>
 </body>
 </html>
