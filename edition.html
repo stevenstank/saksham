@@ -16,16 +16,24 @@
         body {
             font-family: 'Arial', sans-serif;
             background: #2a2a2a;
-            overflow-x: auto;
+            overflow-x: hidden;
             overflow-y: hidden;
             height: 100vh;
+        }
+
+        img,
+        video {
+            max-width: 100%;
+            height: auto;
+            display: block;
         }
 
         .container {
             display: flex;
             height: 100vh;
             width: max-content;
-            min-width: 100vw;
+            min-width: 100%;
+            max-width: 100%;
         }
 
         .folder {

@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Contact — Shashish</title>
+  <title>Contact — Saksham Khandelwal</title>
   <link rel="stylesheet" href="cursor.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,8 +106,20 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      position: relative;
       min-height: 180px;
       /* Ensure enough height for the big text */
+    }
+
+    #hero-glass-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      opacity: 0.65;
+      pointer-events: none;
     }
 
     h1 {
@@ -123,6 +135,8 @@
       /* Allow wrapping on smaller screens */
       word-wrap: break-word;
       padding: 0 1rem;
+      position: relative;
+      z-index: 1;
       /* Add horizontal padding to prevent cutoff */
     }
 
@@ -165,7 +179,7 @@
 
     .sub-text {
       font-size: 0.65rem;
-      color: #555;
+      color: #9a9a9a;
       max-width: 150px;
       line-height: 1.4;
       margin-top: auto;
@@ -183,6 +197,11 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
+    }
+
+    .bottom-right > *:not(#fluid-glass-container) {
+      position: relative;
+      z-index: 1;
     }
 
     .section-title {
@@ -305,13 +324,14 @@
 
       <!-- Hero Title -->
       <div class="hero-title">
+        <div id="hero-glass-container"></div>
         <h1>Let's Connect</h1>
       </div>
 
       <!-- Name Card -->
       <div class="grid-item detail-card">
         <div class="label-row">
-          <span>Name</span>
+          <span>NAME</span>
           <span class="arrow">&rarr;</span>
         </div>
         <div class="content-main">
@@ -319,14 +339,14 @@
           <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2L14.4 9.6H22L15.8 14.4L18.2 22L12 17.2L5.8 22L8.2 14.4L2 9.6H9.6L12 2Z" />
           </svg>
-          <p class="detail-text" style="font-size: 1.43rem;">Shashish A</p>
+          <p class="detail-text" style="font-size: 1.43rem;">Saksham Khandelwal</p>
         </div>
       </div>
 
       <!-- Email Card -->
      <div class="grid-item detail-card">
         <div class="label-row">
-          <span>Email</span>
+          <span>EMAIL</span>
           <span class="arrow">&rarr;</span>
         </div>
         <div class="content-main">
@@ -334,18 +354,18 @@
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
           </svg>
-          <a href="https://mail.google.com/mail/?view=cm&fs=1&to=15.shashish.09.1509@gmail.com" class="detail-text" 
+          <a href="mailto:stevenstank775@gmail.com" class="detail-text" 
              style="font-size: 0.9rem; word-break: break-all; text-decoration: none; color: inherit; position: relative; z-index: 10;">
-            15.shashish.09.1509@gmail.com
+            stevenstank775@gmail.com
           </a>
           <p class="sub-text">For professional correspondence, kindly reach out via email.</p>
         </div>
       </div>
 
-      <!-- Phone Card -->
+      <!-- Twitter Card -->
       <div class="grid-item detail-card">
         <div class="label-row">
-          <span>Phone</span>
+          <span>TWITTER</span>
           <span class="arrow">&rarr;</span>
         </div>
         <div class="content-main">
@@ -363,15 +383,18 @@
             <rect x="9.5" y="16" width="5" height="5"></rect>
             <rect x="16" y="16" width="5" height="5"></rect>
           </svg>
-          <p class="detail-text">+91 99868 24100</p>
-          <p class="sub-text">Call availability is minimal; email remains the primary channel.</p>
+          <a href="https://x.com/stevenstank775" target="_blank" rel="noopener noreferrer" class="detail-text"
+            style="font-size: 0.95rem; word-break: break-all; text-decoration: none; color: inherit; position: relative; z-index: 10;">
+            https://x.com/stevenstank775
+          </a>
+          <p class="sub-text">Reach out for quick conversations and updates.</p>
         </div>
       </div>
 
-      <!-- Location Card -->
+      <!-- LinkedIn Card -->
       <div class="grid-item detail-card">
         <div class="label-row">
-          <span>Location</span>
+          <span>LINKEDIN</span>
           <span class="arrow">&rarr;</span>
         </div>
         <div class="content-main">
@@ -380,42 +403,38 @@
             <path
               d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
           </svg>
-          <p class="sub-text" style="margin-top: 2rem;">RV University Campus, RV Vidyanikethan Post, 8th Mile, Mysuru
-            Road, Bengaluru - 560059</p>
+          <a href="https://www.linkedin.com/in/saksham-khandelwal-8410b6387/" target="_blank" rel="noopener noreferrer" class="detail-text"
+            style="font-size: 0.82rem; word-break: break-all; text-decoration: none; color: inherit; position: relative; z-index: 10;">
+            https://www.linkedin.com/in/saksham-khandelwal-8410b6387/
+          </a>
+          <p class="sub-text">Professional profile and experience.</p>
         </div>
       </div>
 
-      <!-- Bottom Left (Socials) -->
+      <!-- Bottom Left (GitHub) -->
       <div class="grid-item bottom-left">
-        <span class="section-title">SOCIALS</span>
+        <span class="section-title">GITHUB</span>
         <div class="social-list">
-          <span style="font-size: 0.6rem; color: #888; margin-bottom: 0.5rem;">JANUARY 2026</span>
-          <a href="https://www.linkedin.com/in/shashish-a-b2208b2b3" class="social-link">LINKEDIN:
-            <span>/shashish-a</span></a>
-          <a href="https://www.instagram.com/_shashish" class="social-link">INSTAGRAM: <span>@_shashish</span></a>
-          <a href="https://www.behance.net/shashisha1" class="social-link">BEHANCE: <span>/shashisha1</span></a>
-          <a href="https://github.com/redbluvr69" class="social-link">GITHUB: <span>/redbluvr69</span></a>
+          <a href="https://github.com/stevenstank" target="_blank" rel="noopener noreferrer" class="social-link">https://github.com/stevenstank</a>
+          <p class="sub-text" style="max-width: 260px; margin-top: 0.8rem;">View my projects and code.</p>
         </div>
       </div>
 
       <!-- Bottom Right (Address/Footer) -->
       <div class="grid-item bottom-right"
         style="flex-direction: column; justify-content: space-between; align-items: flex-start;">
-        <div style="max-width: 200px;">
-          <p class="section-title" style="margin-bottom: 0.5rem;">Recently added</p>
-          <p style="font-size: 0.75rem; margin-bottom: 1rem;">PORTFOLIO: redbluvr69.github.io/portfolio</p>
-        </div>
+        <div style="max-width: 200px;"></div>
 
         <div class="address-block" style="width: 100%;">
-          <p style="font-size: 0.6rem; text-align: right; margin-bottom: 0.5rem; color:#888;">27 02 2024</p>
+          <p style="font-size: 0.6rem; text-align: right; margin-bottom: 0.5rem; color:#888;">APR 2026</p>
           <div class="serif-display">
-            leveraging the <br>
-            Attention Economy
+            building real <br>
+            digital products
           </div>
           <div
             style="display: flex; justify-content: flex-end; gap: 2rem; margin-top: 1rem; font-size: 0.6rem; text-transform: uppercase;">
-            <span>Designed by<br>Shashish</span>
-            <span>Precision Prompting</span>
+            <span>Full Stack<br>Developer</span>
+            <span>Clean Systems</span>
           </div>
         </div>
 
@@ -506,6 +525,12 @@
           }
 
           window.addEventListener('load', () => {
+            initFluidGlass('hero-glass-container', {
+              ior: 1.1,
+              thickness: 4,
+              chromaticAberration: 0.08,
+              anisotropy: 0.01
+            });
             initFluidGlass('fluid-glass-container', {
               ior: 1.15,
               thickness: 5,
