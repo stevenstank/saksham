@@ -476,6 +476,10 @@
             animation: scroll 40s linear infinite;
         }
 
+        .carousel-container.paused {
+            animation-play-state: paused;
+        }
+
         @keyframes scroll {
             0% {
                 transform: translateX(0);
@@ -657,90 +661,11 @@
             width: 100%;
             height: auto;
             display: block;
-            opacity: 0;
             transition: transform 0.3s ease;
-            pointer-events: none;
         }
 
         .profile-image-container img:hover {
             transform: scale(1.02);
-        }
-
-        /* --- CATEGORY CARDS --- */
-        .category-card {
-            width: 100%;
-            height: 100%;
-            border-radius: 0;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            align-items: flex-end;
-            text-decoration: none;
-            border: none;
-            backdrop-filter: none;
-            transition: transform 0.6s ease;
-            background:
-                radial-gradient(circle at 70% 20%, rgba(73, 200, 211, 0.2), transparent 45%),
-                linear-gradient(140deg, #0d1117 0%, #10151f 40%, #0a0c10 100%);
-        }
-
-        .category-card:hover {
-            transform: scale(1.02);
-        }
-
-
-        .category-card:hover {
-            transform: translateY(-8px) scale(1.03);
-            border-color: #ff6b35;
-            box-shadow: 0 20px 30px rgba(255, 107, 53, 0.2);
-            transform: translateY(-10px) scale(1.05);
-        }
-
-        .category-thumb {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            opacity: 0;
-            transition: transform 0.6s ease;
-        }
-
-        .category-video {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            opacity: 0;
-            transition: transform 0.8s ease;
-        }
-
-        /* Subtle cinematic zoom on hover */
-        .category-card:hover .category-video {
-            transform: scale(1.08);
-        }
-
-
-        .category-card:hover .category-thumb {
-            transform: scale(1.08);
-        }
-
-
-        .category-title {
-            position: relative;
-            z-index: 1;
-            padding: 2rem;
-
-            font-family: Helvetica, sans-serif;
-            font-size: 1.4rem;
-            font-weight: 400;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-
-            color: white;
         }
 
 
@@ -939,58 +864,6 @@
             color: #ffffff;
         }
 
-        /* --- CATEGORIES SECTION --- */
-        /* --- FULLSCREEN CATEGORIES GRID --- */
-        .categories-section {
-            width: 100%;
-            height: 180vh;
-            margin: 0;
-            padding: 0;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(2, 1fr);
-        }
-
-
-        .category-btn {
-            background: rgba(255, 255, 255, 0.05);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1.2rem 2.5rem;
-            border-radius: 50px;
-            text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            text-align: center;
-        }
-
-        .category-btn:hover {
-            background: #ff6b35;
-            border-color: #ff6b35;
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 15px 30px rgba(255, 107, 53, 0.3);
-            color: white;
-        }
-
-        @media (max-width: 768px) {
-            .categories-section {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1rem;
-            }
-
-            .category-btn {
-                padding: 1rem 1.5rem;
-                font-size: 0.8rem;
-            }
-        }
-
         @media (max-width: 1024px) {
             .tools-container {
                 grid-template-columns: 1fr;
@@ -1017,14 +890,6 @@
                 object-fit: contain;
                 padding: 3px;
                 box-sizing: border-box;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .categories-section {
-                grid-template-columns: 1fr;
-                grid-template-rows: repeat(4, 100vh);
-                height: auto;
             }
         }
 
@@ -1592,28 +1457,10 @@
         </div>
 
         <div class="portfolio-carousel">
-            <div class="carousel-container">
+            <div class="carousel-container" id="carousel-container">
 
                 <div class="portfolio-item">
-                    <a href="#" target="_blank" rel="noopener noreferrer">
-                        <div class="project-card">
-                            <div class="project-title">Yap-Hub</div>
-                            <div class="project-desc">Community-based discussion platform with real-time interactions</div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="portfolio-item">
-                    <a href="#" target="_blank" rel="noopener noreferrer">
-                        <div class="project-card">
-                            <div class="project-title">SaksGram</div>
-                            <div class="project-desc">Full stack social media app with posts, likes, comments, and messaging</div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="portfolio-item">
-                    <a href="#" target="_blank" rel="noopener noreferrer">
+                    <a href="https://github.com/stevenstank/rate-guard/" target="_blank" rel="noopener noreferrer">
                         <div class="project-card">
                             <div class="project-title">RateGuard</div>
                             <div class="project-desc">API rate limiting and request protection system</div>
@@ -1622,7 +1469,7 @@
                 </div>
 
                 <div class="portfolio-item">
-                    <a href="#" target="_blank" rel="noopener noreferrer">
+                    <a href="https://github.com/stevenstank/file-uploader" target="_blank" rel="noopener noreferrer">
                         <div class="project-card">
                             <div class="project-title">File Uploader</div>
                             <div class="project-desc">Secure file upload system with cloud storage integration</div>
@@ -1630,19 +1477,8 @@
                     </a>
                 </div>
 
-                <!-- duplicated for continuous scrolling -->
-
                 <div class="portfolio-item">
-                    <a href="#" target="_blank" rel="noopener noreferrer">
-                        <div class="project-card">
-                            <div class="project-title">Yap-Hub</div>
-                            <div class="project-desc">Community-based discussion platform with real-time interactions</div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="portfolio-item">
-                    <a href="#" target="_blank" rel="noopener noreferrer">
+                    <a href="https://github.com/stevenstank/saks-gram" target="_blank" rel="noopener noreferrer">
                         <div class="project-card">
                             <div class="project-title">SaksGram</div>
                             <div class="project-desc">Full stack social media app with posts, likes, comments, and messaging</div>
@@ -1650,8 +1486,10 @@
                     </a>
                 </div>
 
+                <!-- Duplicated for seamless infinite scrolling loop -->
+
                 <div class="portfolio-item">
-                    <a href="#" target="_blank" rel="noopener noreferrer">
+                    <a href="https://github.com/stevenstank/rate-guard/" target="_blank" rel="noopener noreferrer">
                         <div class="project-card">
                             <div class="project-title">RateGuard</div>
                             <div class="project-desc">API rate limiting and request protection system</div>
@@ -1660,10 +1498,19 @@
                 </div>
 
                 <div class="portfolio-item">
-                    <a href="#" target="_blank" rel="noopener noreferrer">
+                    <a href="https://github.com/stevenstank/file-uploader" target="_blank" rel="noopener noreferrer">
                         <div class="project-card">
                             <div class="project-title">File Uploader</div>
                             <div class="project-desc">Secure file upload system with cloud storage integration</div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="portfolio-item">
+                    <a href="https://github.com/stevenstank/saks-gram" target="_blank" rel="noopener noreferrer">
+                        <div class="project-card">
+                            <div class="project-title">SaksGram</div>
+                            <div class="project-desc">Full stack social media app with posts, likes, comments, and messaging</div>
                         </div>
                     </a>
                 </div>
@@ -1923,12 +1770,12 @@
             <div class="footer-links">
                 <div class="footer-column">
                     <span class="footer-title">Connect</span>
-                    <a href="#" target="_blank" rel="noopener noreferrer">GitHub</a>
+                    <a href="https://github.com/stevenstank" target="_blank" rel="noopener noreferrer">GitHub</a>
                 </div>
 
                 <div class="footer-column">
                     <span class="footer-title">Network</span>
-                    <a href="#" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                    <a href="https://linkedin.com/in/saksham" target="_blank" rel="noopener noreferrer">LinkedIn</a>
                 </div>
 
             </div>
@@ -1992,7 +1839,68 @@
     }, 3000);
 </script>
 
+<script>
+    // === CAROUSEL AUTO-SCROLL WITH PAUSE/RESUME ===
+    const carousel = document.getElementById('carousel-container');
+    const portfolioCarousel = document.querySelector('.portfolio-carousel');
+    let resumeTimeout;
+
+    if (carousel && portfolioCarousel) {
+        // Pause on hover
+        portfolioCarousel.addEventListener('mouseenter', () => {
+            carousel.classList.add('paused');
+            clearTimeout(resumeTimeout);
+        });
+
+        // Resume after leaving
+        portfolioCarousel.addEventListener('mouseleave', () => {
+            resumeTimeout = setTimeout(() => {
+                carousel.classList.remove('paused');
+            }, 1000); // 1 second delay before resume
+        });
+
+        // Pause on manual scroll (horizontal wheel/trackpad)
+        portfolioCarousel.addEventListener('wheel', (e) => {
+            // Allow horizontal scrolling
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                carousel.classList.add('paused');
+                clearTimeout(resumeTimeout);
+
+                // Resume after 2 seconds of inactivity
+                resumeTimeout = setTimeout(() => {
+                    carousel.classList.remove('paused');
+                }, 2000);
+            }
+        }, { passive: true });
+
+        // Pause on drag (mouse down)
+        let isDragging = false;
+        portfolioCarousel.addEventListener('mousedown', () => {
+            isDragging = true;
+            carousel.classList.add('paused');
+            clearTimeout(resumeTimeout);
+        });
+
+        portfolioCarousel.addEventListener('mouseup', () => {
+            isDragging = false;
+            resumeTimeout = setTimeout(() => {
+                carousel.classList.remove('paused');
+            }, 2000);
+        });
+
+        portfolioCarousel.addEventListener('mouseleave', () => {
+            if (isDragging) {
+                isDragging = false;
+                resumeTimeout = setTimeout(() => {
+                    carousel.classList.remove('paused');
+                }, 2000);
+            }
+        });
+    }
+</script>
+
 
 </body>
 
 </html>
+
