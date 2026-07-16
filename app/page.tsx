@@ -26,9 +26,8 @@ export default function Home() {
             <div className="flex flex-wrap gap-3">
               <Badge>Go</Badge>
               <Badge>Distributed Systems</Badge>
-              <Badge>Networking</Badge>
               <Badge>Backend</Badge>
-              <Badge>Developer Tools</Badge>
+              <Badge>NextJS</Badge>
             </div>
 
             <div className="max-w-2xl space-y-5">

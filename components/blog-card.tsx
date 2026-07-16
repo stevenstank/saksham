@@ -16,7 +16,7 @@ export function BlogCard({ title, description, date, readingTime, href, classNam
     <Link
       href={href}
       className={cn(
-        "group block p-8 rounded-lg border border-zinc-900 bg-zinc-950/30 hover:border-zinc-800 transition-all duration-300 hover:-translate-y-1",
+        "group block p-8 rounded-lg border border-zinc-900 bg-zinc-950/30 hover:border-zinc-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-zinc-900/20",
         className
       )}
     >
@@ -27,7 +27,7 @@ export function BlogCard({ title, description, date, readingTime, href, classNam
             <span>·</span>
             <span>{readingTime}</span>
           </div>
-          <h3 className="text-xl font-medium text-foreground group-hover:text-accent transition-colors" style={{ textShadow: '0 0 8px rgba(250, 250, 250, 0.1)' }}>
+          <h3 className="text-xl font-medium text-foreground group-hover:text-accent transition-all duration-300" style={{ textShadow: '0 0 8px rgba(250, 250, 250, 0.1)' }}>
             {title}
           </h3>
           <p className="mt-3 text-base text-foreground-secondary line-clamp-2 leading-relaxed">

@@ -41,7 +41,7 @@ export function Navbar() {
               >
                 {item.name}
                 {pathname === item.href && (
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[1px] bg-[#F4B942] rounded-full" style={{ boxShadow: '0 0 8px rgba(244, 185, 66, 0.5)' }} />
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-[#F4B942] rounded-full" style={{ boxShadow: '0 0 8px rgba(244, 185, 66, 0.5)' }} />
                 )}
               </Link>
             ))}
