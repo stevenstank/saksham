@@ -9,7 +9,7 @@ interface FooterProps {
 const socialLinks = [
   { name: "GitHub", href: "https://github.com/stevenstank", icon: FaGithub },
   { name: "LinkedIn", href: "https://linkedin.com/in/stevenstank775", icon: FaLinkedin },
-  { name: "X", href: "https://x.com/stevenstank", icon: FaXTwitter },
+  { name: "X", href: "https://x.com/stevenstank775", icon: FaXTwitter },
   { name: "Mail", href: "mailto:stevenstank775@gmail.com", icon: Mail },
 ];
 

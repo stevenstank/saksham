@@ -22,7 +22,7 @@ export default function ExperiencePage() {
               Experience
             </h1>
             <p className="text-xl text-foreground-secondary max-w-3xl leading-relaxed">
-              My professional journey in backend engineering and distributed systems.
+              My professional journey in developing.
             </p>
           </div>
 
