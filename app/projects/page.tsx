@@ -18,14 +18,14 @@ const featuredProjects = [
     description: "Distributed task runner built in Go with workers, coordinators and concurrent execution.",
     github: "https://github.com/stevenstank/dispatch",
     tech: ["Go", "Concurrency", "Task Queue"],
-    status: "Building",
+    status: "Built",
   },
   {
     title: "SaksGram",
     description: "A social media platform built to explore authentication, real-time interactions and modern full-stack architecture.",
     github: "https://github.com/stevenstank/saks-gram",
     tech: ["Next.js", "TypeScript", "PostgreSQL", "Real-time"],
-    status: "Archived",
+    status: "Built",
   },
 ];
 
