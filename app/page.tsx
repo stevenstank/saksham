@@ -41,7 +41,7 @@ export default function Home() {
                 This website is where I share my <Link href="/projects" className="text-foreground hover:text-accent transition-colors underline decoration-dotted underline-offset-4 hover:decoration-solid">projects</Link> and write about everything I learn along the way on my <Link href="/blog" className="text-foreground hover:text-accent transition-colors underline decoration-dotted underline-offset-4 hover:decoration-solid">blog</Link>.
               </p>
               <p className="text-xl text-foreground-secondary leading-relaxed">
-                Currently building Bolt, writing about what I learn, and finding new engineering rabbit holes every week.
+                Currently exploring distributed systems, backend engineering, and writing more than just code.
               </p>
             </div>
 

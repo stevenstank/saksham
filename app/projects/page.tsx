@@ -11,7 +11,7 @@ const featuredProjects = [
     description: "Redis-inspired in-memory database written in Go. Currently exploring persistence, networking and distributed systems while building it.",
     github: "https://github.com/stevenstank/bolt",
     tech: ["Go", "Redis Protocol", "Distributed Systems"],
-    status: "Building",
+    status: "Built",
   },
   {
     title: "Dispatch",

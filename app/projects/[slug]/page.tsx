@@ -7,14 +7,14 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export async function generateStaticParams() {
-  const projects = getPosts('projects');
+  const projects = await getPosts('projects');
   return projects.map((project) => ({
     slug: project.slug,
   }));
 }
 
-export default function ProjectPage({ params }: { params: { slug: string } }) {
-  const project = getPostBySlug('projects', params.slug);
+export default async function ProjectPage({ params }: { params: { slug: string } }) {
+  const project = await getPostBySlug('projects', params.slug);
 
   if (!project) {
     notFound();

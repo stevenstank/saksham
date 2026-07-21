@@ -55,3 +55,129 @@ body::after {
   background: rgba(11, 11, 11, 0.85);
   z-index: -1;
 }
+
+/* Prose styling for blog content */
+.prose {
+  color: var(--foreground);
+  max-width: 65ch;
+  line-height: 1.75;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  color: #F4B942;
+  font-weight: 500;
+  line-height: 1.25;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  text-shadow: 0 0 8px rgba(244, 185, 66, 0.2), 0 0 16px rgba(244, 185, 66, 0.1);
+}
+
+.prose h1 {
+  font-size: 2.25em;
+}
+
+.prose h2 {
+  font-size: 1.875em;
+}
+
+.prose h3 {
+  font-size: 1.5em;
+}
+
+.prose p {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+  color: rgba(250, 248, 245, 0.9);
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.prose a:hover {
+  text-decoration: underline;
+}
+
+.prose a.project-link {
+  color: #F4B942;
+  text-decoration: underline;
+  text-decoration-color: rgba(244, 185, 66, 0.4);
+  text-underline-offset: 2px;
+  transition: all 0.2s ease;
+}
+
+.prose a.project-link:hover {
+  text-decoration-color: #F4B942;
+  text-shadow: 0 0 8px rgba(244, 185, 66, 0.2);
+}
+
+.prose strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.prose code {
+  color: var(--accent);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.875em;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
+}
+
+.prose pre {
+  background: #09090b;
+  border: 1px solid #27272a;
+  border-radius: 0.5em;
+  padding: 1em;
+  overflow-x: auto;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875em;
+}
+
+.prose ul,
+.prose ol {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+  padding-left: 1.625em;
+}
+
+.prose li {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  color: rgba(250, 248, 245, 0.9);
+}
+
+.prose blockquote {
+  border-left: 0.25em solid var(--accent);
+  padding-left: 1em;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+  color: rgba(250, 248, 245, 0.8);
+  font-style: italic;
+}
+
+.prose hr {
+  border-color: #27272a;
+  margin-top: 2em;
+  margin-bottom: 2em;
+}
+
+.prose img {
+  border-radius: 0.5em;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}

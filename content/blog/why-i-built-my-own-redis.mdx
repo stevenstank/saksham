@@ -1,0 +1,112 @@
+---
+title: Why I Built My Own Redis
+description: A deep dive into the architecture decisions and lessons learned from building a Redis-compatible key-value store from scratch.
+date: 2026-07-21
+tags: [databases, redis, go, distributed-systems]
+published: true
+project: Bolt
+github: https://github.com/stevenstank/bolt
+projectHref: /projects#bolt
+---
+
+# why i decided to build my own redis
+
+a very good friend of mine once told me,
+
+> "to understand what's really going on, you need to build it."
+
+that sentence stayed with me.
+
+i had used redis before in one of my projects. i knew how to use it. i knew it was fast. but after hearing that, i couldn't stop thinking about one question.
+
+**why is redis so fast?**
+
+what actually happens when i run something as simple as
+
+```text
+set name saksham
+```
+
+where does the data go? how does it remember it? how does it handle so many requests at once? what happens if the server crashes?
+
+instead of reading more about it, i decided to build something similar myself.
+
+that's how [<a href="/projects#bolt" class="project-link">bolt</a>](/projects#bolt) started.
+
+## why build something that already exists?
+
+because building hits different.
+
+it's easy to read a blog or watch a video and think you understand something. it's completely different when you're the one writing the code. the moment you're responsible for making something work, every tiny decision starts to matter. you stop memorizing concepts and start understanding why they exist.
+
+that's exactly the kind of learning i wanted.
+
+## what is bolt?
+
+bolt is a redis-inspired in-memory key-value database that i'm building in go. [<a href="https://github.com/stevenstank/bolt" target="_blank" rel="noopener noreferrer">View source ↗</a>](https://github.com/stevenstank/bolt)
+
+the goal isn't to recreate redis feature by feature. it's simply a project to help me understand systems programming by building one myself.
+
+right now it supports things like storing data in memory, handling multiple clients over tcp, persisting data to disk using an append-only file, snapshots, and crash recovery.
+
+there's still a long way to go, but that's the fun part.
+
+## bolt humbled me
+
+this project humbled me a lot more than i expected.
+
+i thought i had a decent understanding of systems. turns out i knew just enough to get started.
+
+every feature looked simple until i actually had to build it.
+
+storing data was easy. making sure it survived a restart wasn't. handling one client was easy. handling multiple clients safely wasn't. saving data was easy. recovering after a crash wasn't.
+
+every time i thought i was almost done, another problem showed up. and honestly, i'm glad it did. because every bug forced me to understand something a little deeper.
+
+## what i learned
+
+bolt taught me a lot more than databases.
+
+it completely changed the way i think about software.
+
+instead of asking, *"how does redis do this?"* i started asking, *"what problem is redis trying to solve?"*
+
+that one question changed everything.
+
+append-only files, snapshots, concurrency, crash recovery, networking. they stopped feeling like cool features and started feeling like solutions to real problems.
+
+it also gave me a much better foundation for distributed systems. before you think about replication, fault tolerance, or distributed coordination, you first need to understand what happens inside a single server. building bolt made me appreciate that.
+
+## what's next?
+
+there's still a lot i want to build.
+
+ttl support, replication, pub/sub, transactions, better persistence.
+
+and eventually use bolt as a playground to learn more about distributed systems.
+
+not because i want to build another redis.
+
+just because i want to keep learning.
+
+## final thoughts
+
+looking back, i'm really glad i started this project.
+
+it's not the biggest thing i've built. it isn't the most complicated either. but it's easily one of the projects i'm most proud of because of everything it has taught me.
+
+my friend was right.
+
+> "to understand what's really going on, you need to build it."
+
+i think that's how i'll keep learning from now on.
+
+## for the non-tech people
+
+if you're wondering what redis actually is, think of it as a super fast notebook that applications use to temporarily remember information.
+
+instead of reading and writing everything from a hard drive, it keeps data in memory, which makes it extremely fast.
+
+that's why it's used for things like caching, user sessions, leaderboards, rate limiting, and lots of other things that need quick access to data.
+
+bolt follows the same idea. it's my own learning project inspired by redis. i'm not trying to replace redis. i'm just trying to understand why software like it works so well by building one myself.

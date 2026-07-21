@@ -5,8 +5,8 @@ import { getPosts } from "@/lib/mdx";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-export default function BlogPage() {
-  const posts = getPosts('blog');
+export default async function BlogPage() {
+  const posts = await getPosts('blog');
 
   return (
     <Container>
@@ -43,8 +43,9 @@ export default function BlogPage() {
                   key={post.slug}
                   title={post.title}
                   description={post.description}
-                  date={post.date}
+                  formattedDate={post.formattedDate}
                   readingTime={post.readingTime}
+                  tags={post.tags}
                   href={`/blog/${post.slug}`}
                 />
               ))}
