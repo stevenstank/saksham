@@ -1,15 +1,19 @@
 import { createHighlighter } from 'shiki';
 
-let highlighter: Awaited<ReturnType<typeof createHighlighter>> | null = null;
+// The promise is cached rather than the resolved highlighter: getHighlighter is
+// called concurrently (every code fence in a post is highlighted in parallel),
+// and caching only the resolved value lets every one of those calls race past
+// the nil check and build its own instance.
+let highlighterPromise: ReturnType<typeof createHighlighter> | null = null;
 
 export async function getHighlighter() {
-  if (!highlighter) {
-    highlighter = await createHighlighter({
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighter({
       themes: ['github-dark'],
       langs: ['typescript', 'javascript', 'go', 'rust', 'python', 'bash', 'json', 'yaml', 'toml'],
     });
   }
-  return highlighter;
+  return highlighterPromise;
 }
 
 export async function highlightCode(code: string, lang: string = 'text') {

@@ -181,3 +181,600 @@ body::after {
   margin-top: 1.5em;
   margin-bottom: 1.5em;
 }
+
+/* ------------------------------------------------------------------ */
+/* Rich blog blocks                                                     */
+/* Plain CSS, in the site's existing palette, so markdown content can    */
+/* use them directly through the marked pipeline in lib/mdx.ts.          */
+/* ------------------------------------------------------------------ */
+
+/* --- Syntax-highlighted code (Shiki) --- */
+
+.prose .code-block {
+  position: relative;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+
+.prose .code-block::after {
+  content: attr(data-lang);
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: rgba(156, 163, 175, 0.55);
+  pointer-events: none;
+}
+
+.prose .code-block[data-lang="text"]::after {
+  content: none;
+}
+
+.prose .code-block pre {
+  background: #09090b !important;
+  border: 1px solid #27272a;
+  border-radius: 0.5em;
+  padding: 1em 1.1em;
+  overflow-x: auto;
+  margin: 0;
+  font-size: 0.85em;
+  line-height: 1.65;
+}
+
+.prose .code-block pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+/* --- Callouts --- */
+
+.prose .callout {
+  margin: 1.75em 0;
+  padding: 1rem 1.15rem;
+  border: 1px solid;
+  border-left-width: 3px;
+  border-radius: 0.5rem;
+  font-size: 0.95em;
+}
+
+.prose .callout p {
+  margin: 0.5em 0 0;
+  color: rgba(250, 248, 245, 0.85);
+}
+
+.prose .callout p:first-of-type {
+  margin-top: 0;
+}
+
+.prose .callout-title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.prose .callout--note {
+  border-color: rgba(96, 165, 250, 0.28);
+  border-left-color: #60a5fa;
+  background: rgba(59, 130, 246, 0.06);
+}
+.prose .callout--note .callout-title { color: #93c5fd; }
+
+.prose .callout--gotcha {
+  border-color: rgba(250, 204, 21, 0.28);
+  border-left-color: #eab308;
+  background: rgba(234, 179, 8, 0.06);
+}
+.prose .callout--gotcha .callout-title { color: #fde047; }
+
+.prose .callout--limit {
+  border-color: rgba(244, 63, 94, 0.26);
+  border-left-color: #f43f5e;
+  background: rgba(244, 63, 94, 0.06);
+}
+.prose .callout--limit .callout-title { color: #fda4af; }
+
+.prose .callout--kernel {
+  border-color: rgba(244, 185, 66, 0.3);
+  border-left-color: #F4B942;
+  background: rgba(244, 185, 66, 0.06);
+}
+.prose .callout--kernel .callout-title { color: #F4B942; }
+
+/* --- Terminal --- */
+
+.prose .terminal {
+  margin: 1.75em 0;
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: rgba(9, 9, 11, 0.7);
+}
+
+.prose .terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid #27272a;
+  background: #09090b;
+}
+
+.prose .terminal-bar span {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 9999px;
+  background: #3f3f46;
+}
+
+.prose .terminal-bar em {
+  margin-left: 0.75rem;
+  font-style: normal;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.72rem;
+  color: rgba(156, 163, 175, 0.8);
+}
+
+.prose pre.terminal-body {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow-x: auto;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.82em;
+  line-height: 1.7;
+  color: rgba(250, 248, 245, 0.82);
+  white-space: pre;
+}
+
+.prose pre.terminal-body code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.prose .terminal-body b {
+  color: #F4B942;
+  font-weight: 500;
+}
+
+.prose .terminal-body i {
+  color: rgba(156, 163, 175, 0.7);
+  font-style: normal;
+}
+
+/* --- Diagrams --- */
+
+.prose .diagram {
+  margin: 2em 0;
+  padding: 1.25rem;
+  border: 1px solid #27272a;
+  border-radius: 0.75rem;
+  background: rgba(9, 9, 11, 0.45);
+}
+
+.prose .diagram-title {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(156, 163, 175, 0.7);
+  margin-bottom: 1rem;
+}
+
+.prose .diagram-caption {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: rgba(156, 163, 175, 0.85);
+}
+
+.prose .layer {
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(24, 24, 27, 0.4);
+}
+
+.prose .layer-label {
+  display: block;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(156, 163, 175, 0.6);
+  margin-bottom: 0.6rem;
+}
+
+.prose .layer--accent {
+  border-color: rgba(244, 185, 66, 0.35);
+  background: rgba(244, 185, 66, 0.06);
+}
+
+.prose .layer--accent .layer-label { color: #F4B942; }
+
+.prose .nodes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 0.5rem;
+}
+
+.prose .node {
+  border: 1px solid #27272a;
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  background: #0b0b0b;
+}
+
+.prose .node b {
+  display: block;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: rgba(250, 248, 245, 0.92);
+}
+
+.prose .node span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: rgba(156, 163, 175, 0.8);
+}
+
+.prose .node--accent {
+  border-color: rgba(244, 185, 66, 0.4);
+  background: rgba(244, 185, 66, 0.07);
+}
+
+.prose .node--accent b { color: #F4B942; }
+
+.prose .flow-arrow {
+  text-align: center;
+  font-size: 0.85rem;
+  color: rgba(244, 185, 66, 0.5);
+  margin: 0.5rem 0;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+/* Two-lane (parent / child) swimlane */
+
+.prose .lanes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .prose .lanes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.prose .lane-head {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(156, 163, 175, 0.65);
+  margin-bottom: 0.5rem;
+}
+
+.prose .step {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  border: 1px solid #27272a;
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 0.4rem;
+  background: rgba(11, 11, 11, 0.7);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: rgba(250, 248, 245, 0.85);
+}
+
+.prose .step kbd {
+  flex-shrink: 0;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.66rem;
+  color: rgba(156, 163, 175, 0.7);
+  border: 1px solid #27272a;
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.3rem;
+  background: #09090b;
+}
+
+.prose .step code {
+  background: transparent;
+  padding: 0;
+  color: #F4B942;
+  font-size: 0.95em;
+}
+
+.prose .step--accent {
+  border-color: rgba(244, 185, 66, 0.35);
+  background: rgba(244, 185, 66, 0.05);
+}
+
+.prose .step--muted {
+  opacity: 0.5;
+}
+
+.prose .rule {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 1rem 0;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 185, 66, 0.8);
+}
+
+.prose .rule::before,
+.prose .rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(244, 185, 66, 0.3), transparent);
+}
+
+/* Side-by-side comparison panels */
+
+.prose .compare {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .prose .compare {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.prose .panel {
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  padding: 0.85rem;
+  background: rgba(11, 11, 11, 0.6);
+}
+
+.prose .panel h5 {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.78rem;
+  color: rgba(250, 248, 245, 0.92);
+  text-shadow: none;
+}
+
+.prose .panel ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.prose .panel li {
+  margin: 0.3rem 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: rgba(156, 163, 175, 0.9);
+}
+
+.prose .panel--bad { border-color: rgba(244, 63, 94, 0.28); }
+.prose .panel--bad h5 { color: #fda4af; }
+.prose .panel--good { border-color: rgba(244, 185, 66, 0.32); }
+.prose .panel--good h5 { color: #F4B942; }
+
+/* Small fact strip */
+
+.prose .facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.6rem;
+  margin: 1.75em 0;
+}
+
+.prose .fact {
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  background: rgba(9, 9, 11, 0.5);
+}
+
+.prose .fact b {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #F4B942;
+  line-height: 1.2;
+}
+
+.prose .fact span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: rgba(156, 163, 175, 0.85);
+}
+
+/* A blank line inside a raw-HTML block would end it and let marked inject
+   paragraphs into the <pre>, so vertical space in a terminal is a block span. */
+.prose .terminal-body .gap {
+  display: block;
+  height: 0.75rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scrollbars                                                          */
+/* Site-wide, in the same amber palette as the rest of the page. The    */
+/* thumb is drawn inside a transparent border so it reads as a slim     */
+/* pill with breathing room rather than filling the whole gutter.       */
+/* ------------------------------------------------------------------ */
+
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 185, 66, 0.35) transparent;
+}
+
+/* WebKit / Chromium */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(244, 185, 66, 0.3);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(244, 185, 66, 0.55);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: rgba(244, 185, 66, 0.75);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* The horizontal bars inside code, terminal and diagram blocks sit on a
+   darker ground and look heavy at the full 10px, so they are slimmer. */
+.prose .code-block pre::-webkit-scrollbar,
+.prose pre.terminal-body::-webkit-scrollbar,
+.prose pre::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.prose .code-block pre::-webkit-scrollbar-thumb,
+.prose pre.terminal-body::-webkit-scrollbar-thumb,
+.prose pre::-webkit-scrollbar-thumb {
+  background-color: rgba(244, 185, 66, 0.22);
+  border-width: 2px;
+}
+
+.prose .code-block pre::-webkit-scrollbar-thumb:hover,
+.prose pre.terminal-body::-webkit-scrollbar-thumb:hover,
+.prose pre::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(244, 185, 66, 0.5);
+}
+
+/* Scrollbars are decoration; respect a reduced-motion preference by
+   dropping the hover transition rather than the colour change. */
+@media (prefers-reduced-motion: reduce) {
+  ::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Phone view                                                          */
+/* The rich blog blocks are built for a ~700px column. On a 360-390px   */
+/* screen the container's own px-6 leaves roughly 300px inside a        */
+/* diagram, so the padding, grid minimums and scrollbars are all cut    */
+/* down to match rather than being allowed to force a page-wide scroll. */
+/* ------------------------------------------------------------------ */
+
+/* Long unbroken tokens (paths, image refs, module names) must wrap
+   instead of pushing their container wider than the screen. */
+.prose p,
+.prose li,
+.prose .fact span,
+.prose .node span,
+.prose .step span,
+.prose .callout p {
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 640px) {
+  /* A 10px gutter is heavy on a phone, and on Android Chrome a styled
+     scrollbar takes real layout space inside overflowing blocks. */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-width: 1px;
+  }
+
+  .prose .code-block pre::-webkit-scrollbar,
+  .prose pre.terminal-body::-webkit-scrollbar,
+  .prose pre::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  /* Tighter chrome so the content, not the padding, gets the width. */
+  .prose .diagram {
+    padding: 0.9rem;
+    border-radius: 0.6rem;
+  }
+
+  .prose .callout {
+    padding: 0.85rem 0.95rem;
+  }
+
+  .prose .code-block pre {
+    padding: 0.85rem 0.9rem;
+    font-size: 0.8em;
+  }
+
+  .prose pre.terminal-body {
+    padding: 0.85rem 0.9rem;
+    font-size: 0.76em;
+  }
+
+  /* Two columns still fit at 360px once the minimums come down; below
+     that they collapse to one rather than overflowing. */
+  .prose .facts,
+  .prose .nodes {
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 0.45rem;
+  }
+
+  .prose .fact {
+    padding: 0.6rem 0.65rem;
+  }
+
+  .prose .fact b {
+    font-size: 1.05rem;
+  }
+
+  .prose .node {
+    padding: 0.45rem 0.5rem;
+  }
+
+  .prose .step {
+    padding: 0.45rem 0.55rem;
+    font-size: 0.75rem;
+  }
+
+  /* The language tag sat over the first line of short code blocks. */
+  .prose .code-block::after {
+    top: 0.45rem;
+    right: 0.55rem;
+    font-size: 0.65rem;
+  }
+}

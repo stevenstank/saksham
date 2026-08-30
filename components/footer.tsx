@@ -24,12 +24,14 @@ export function Footer({ className }: FooterProps) {
           <div className="flex items-center gap-6">
             {socialLinks.map((link) => {
               const Icon = link.icon;
+              // A mailto: is handed to the mail client, so it must not open a tab.
+              const isMail = link.href.startsWith('mailto:');
               return (
                 <a
                   key={link.name}
                   href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target={isMail ? undefined : "_blank"}
+                  rel={isMail ? undefined : "noopener noreferrer"}
                   className="text-foreground-secondary hover:text-foreground transition-colors"
                   aria-label={link.name}
                 >

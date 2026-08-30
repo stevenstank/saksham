@@ -6,9 +6,9 @@ const experience = [
   {
     title: "Software Engineering Intern",
     organization: "Stealth Startup",
-    period: "April 2026 — Present",
+    period: "April 2026 — July 2026",
     description: "Worked across backend and full-stack features, shipped production code, built internal tools, improved existing systems and spent far too much time debugging things that turned out to be one missing semicolon.",
-    tech: ["Go", "Next.js", "TypeScript", "Strapi", "PostgreSQL", "AI"],
+    tech: ["Next.js", "TypeScript", "Strapi", "PostgreSQL", "AI"],
   },
 ];
 

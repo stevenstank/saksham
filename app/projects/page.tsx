@@ -5,13 +5,41 @@ import { ArrowRight } from "lucide-react";
 import { FaGithub } from "react-icons/fa6";
 import { cn } from "@/lib/utils";
 
-const featuredProjects = [
+interface Project {
+  title: string;
+  description: string;
+  github: string;
+  tech: string[];
+  status: string;
+  /** Renders the larger, accent-bordered treatment with the highlights grid. */
+  featured?: boolean;
+  /** Short engineering notes shown only on featured projects. */
+  highlights?: { label: string; detail: string }[];
+  /** Link to a long-form writeup on the blog. */
+  writeup?: { href: string; label: string };
+}
+
+const featuredProjects: Project[] = [
+  {
+    title: "Forge",
+    description:
+      "A container runtime built from scratch in Go using Linux primitives and raw kernel interfaces.",
+    github: "https://github.com/stevenstank/forge",
+    tech: ["Go", "Linux Namespaces", "cgroups v2", "netlink", "OCI Images", "Syscalls"],
+    status: "Built",
+    featured: true,
+   
+  },
   {
     title: "Bolt",
     description: "Redis-inspired in-memory database written in Go. Currently exploring persistence, networking and distributed systems while building it.",
     github: "https://github.com/stevenstank/bolt",
     tech: ["Go", "Redis Protocol", "Distributed Systems"],
     status: "Built",
+    writeup: {
+      href: "/blog/why-i-built-my-own-redis",
+      label: "Read the writeup",
+    },
   },
   {
     title: "Dispatch",
@@ -60,22 +88,55 @@ export default function ProjectsPage() {
             {featuredProjects.map((project) => (
               <div
                 key={project.title}
-                className="p-6 rounded-xl border border-zinc-900 bg-zinc-950/30 hover:border-zinc-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-zinc-900/20"
+                id={project.title.toLowerCase()}
+                className={cn(
+                  "p-6 rounded-xl border bg-zinc-950/30 transition-all duration-300 hover:-translate-y-1 scroll-mt-24",
+                  project.featured
+                    ? "border-[#C98F1D]/40 hover:border-[#C98F1D]/70 hover:shadow-lg hover:shadow-[#F4B942]/10"
+                    : "border-zinc-900 hover:border-zinc-800 hover:shadow-lg hover:shadow-zinc-900/20"
+                )}
               >
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="text-xl font-medium text-foreground" style={{ textShadow: '0 0 8px rgba(250, 250, 250, 0.1)' }}>
                         {project.title}
                       </h3>
                       <StatusBadge status={project.status} />
+                      {project.featured && (
+                        <span
+                          className="text-xs px-2 py-1 rounded-full border border-[#C98F1D] text-[#F7C75A] bg-[#131313]"
+                          style={{ textShadow: '0 0 6px rgba(247, 199, 90, 0.3)' }}
+                        >
+                          Systems deep dive
+                        </span>
+                      )}
                     </div>
                     <p className="text-base text-foreground-secondary leading-relaxed">
                       {project.description}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-900/50">
+
+                {project.highlights && (
+                  <div className="grid gap-3 sm:grid-cols-2 mt-6">
+                    {project.highlights.map((highlight) => (
+                      <div
+                        key={highlight.label}
+                        className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-4"
+                      >
+                        <div className="text-sm font-medium text-[#F4B942] mb-1.5">
+                          {highlight.label}
+                        </div>
+                        <p className="text-sm text-foreground-secondary leading-relaxed">
+                          {highlight.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-4 mt-6 pt-4 border-t border-zinc-900/50">
                   <div className="flex flex-wrap gap-2">
                     {project.tech.map((tech) => (
                       <span key={tech} className="text-xs text-foreground-secondary px-2 py-1 rounded-md bg-zinc-900/50">
@@ -83,16 +144,27 @@ export default function ProjectsPage() {
                       </span>
                     ))}
                   </div>
-                  <a
-                    href={project.github}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent-secondary transition-all duration-300 hover:gap-3 group"
-                  >
-                    <FaGithub className="h-4 w-4" />
-                    GitHub
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </a>
+                  <div className="flex items-center gap-5">
+                    {project.writeup && (
+                      <Link
+                        href={project.writeup.href}
+                        className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent-secondary transition-all duration-300 hover:gap-3 group"
+                      >
+                        {project.writeup.label}
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </Link>
+                    )}
+                    <a
+                      href={project.github}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent-secondary transition-all duration-300 hover:gap-3 group"
+                    >
+                      <FaGithub className="h-4 w-4" />
+                      GitHub
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </a>
+                  </div>
                 </div>
               </div>
             ))}

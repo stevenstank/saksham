@@ -1,0 +1,617 @@
+---
+title: Inside Forge | Writing a Container Runtime From Scratch
+description: A container runtime built from scratch in Go using Linux primitives and raw kernel interfaces.
+date: 2026-08-30
+tags: [go, linux, containers, namespaces, cgroups, netlink, systems]
+published: true
+project: Forge
+github: https://github.com/stevenstank/forge
+projectHref: /projects#forge
+---
+
+# i built my own container runtime in go
+
+i've used containers before. you run something, it works, and you don't really think about what is happening underneath. you just know that somehow this thing called a "container" makes your application run in its own environment.
+
+and honestly, i didn't really like that. i wanted to know what is actually happening when you run a container. what makes it isolated? how does it get its own filesystem? how does it get its own network? how does it stop a process from using all the memory on the machine?
+
+so instead of just reading about it, i decided to build one myself.
+
+that's how **forge** started.
+
+## so, what is forge?
+
+forge is a small container runtime that i built from scratch in go. <a href="https://github.com/stevenstank/forge" class="project-link" target="_blank" rel="noopener noreferrer">the source is on github ↗</a>
+
+at a high level, you give forge something to run and it creates an isolated environment for it. something like:
+
+```bash
+forge run alpine:3.20 /bin/sh
+```
+
+and you get a shell running inside a container.
+
+but forge isn't using docker underneath. i built the main pieces myself using linux primitives.
+
+<div class="facts">
+<div class="fact"><b>6</b><span>stages, each one a complete working system</span></div>
+<div class="fact"><b>12</b><span>internal packages, one per kernel concept</span></div>
+<div class="fact"><b>1</b><span>dependency outside the standard library (golang.org/x/sys)</span></div>
+<div class="fact"><b>0</b><span>shell-outs to docker, runc, ip or iptables</span></div>
+</div>
+
+the goal was never to build something that replaces docker. i wanted to understand what a container actually is and what has to happen underneath that one simple command.
+
+## but what actually is a container?
+
+this was probably the biggest thing i wanted to understand.
+
+when you hear "container", it can sound like you're starting some kind of tiny virtual computer. you're not.
+
+at the end of the day, a container is still a normal process running on your computer. the difference is that the process is given boundaries.
+
+it can be made to see its own processes, have its own hostname, have its own filesystem and network, and have limits on how many resources it is allowed to use.
+
+so the container feels like its own little machine, even though it's actually running on the same linux kernel as everything else.
+
+the idea sounds pretty simple when you say it like that. actually making it work is a different story.
+
+## what forge does
+
+i built forge in six stages, with each stage adding another important part of what we normally think of as a container.
+
+### stage 1: process isolation
+
+the first thing i needed was isolation.
+
+forge uses linux namespaces to give processes their own view of certain parts of the system. for example, a process inside the container can have its own pid namespace, which means it can see itself as pid 1 instead of seeing every process running on my laptop.
+
+it can also have its own hostname and mount namespace.
+
+the part that actually asks the kernel for this is tiny. a `Config` says which namespaces you want, and that turns into flags for `clone(2)`:
+
+`internal/namespace/namespace.go`
+
+```go
+// CloneFlags returns the clone(2) flags that create the requested namespaces.
+//
+// This is pure computation and is deliberately separated from Apply so the
+// mapping from Config to kernel flags is unit-testable without root.
+func (c Config) CloneFlags() uintptr {
+	var flags uintptr
+	if c.PID {
+		flags |= syscall.CLONE_NEWPID
+	}
+	if c.UTS {
+		flags |= syscall.CLONE_NEWUTS
+	}
+	if c.Mount {
+		flags |= syscall.CLONE_NEWNS
+	}
+	if c.Net {
+		flags |= syscall.CLONE_NEWNET
+	}
+	return flags
+}
+```
+
+that was the first thing that surprised me. asking for isolation is one line per namespace. making the isolation actually hold is the rest of the project.
+
+the very first example of that is the mount namespace. `CLONE_NEWNS` gives you a *copy* of the host's mount table, and the copy inherits each mount's propagation type. on any systemd host `/` is shared, so a mount made inside the container would still travel back out to the host. so the child has to detach the tree itself, from inside:
+
+```go
+func makeMountTreePrivate() error {
+	const (
+		source = "none"
+		target = "/"
+		fstype = ""
+		data   = ""
+	)
+	if err := syscall.Mount(source, target, fstype, syscall.MS_REC|syscall.MS_PRIVATE, data); err != nil {
+		return fmt.Errorf("making mount tree private: %w", translatePermission(err))
+	}
+	return nil
+}
+```
+
+<div class="callout callout--kernel">
+<span class="callout-title">kernel detail</span>
+<p>a new mount namespace is not an empty one. it starts as a copy of its parent's, propagation types and all. without the recursive <code>MS_PRIVATE</code> above, every mount the container makes would still show up on the host. the namespace would exist, and the isolation still wouldn't.</p>
+</div>
+
+this was the first point where forge started feeling like an actual container instead of just another go program starting a process.
+
+### stage 2: filesystem isolation
+
+next was the filesystem.
+
+if i start a container, i don't want the process to simply have access to my entire computer.
+
+forge creates an isolated filesystem environment for the container and uses things like mounts and `pivot_root` to give the process its own view of the filesystem.
+
+so when you're inside the container, `/` is no longer simply the `/` from my laptop. it's the container's root filesystem.
+
+`internal/mount/apply.go`
+
+```go
+// PivotRoot makes newRoot the calling process's root filesystem and detaches
+// the old one.
+func PivotRoot(newRoot string) error {
+	newRoot = filepath.Clean(newRoot)
+
+	// The kernel refuses a new root that is not a mount point, with a bare
+	// EINVAL that explains nothing. Say what it means instead.
+	mounted, err := IsMountPoint(newRoot)
+	if err != nil {
+		return err
+	}
+	if !mounted {
+		return fmt.Errorf("%w: %q is a plain directory; bind it onto itself first", ErrRootNotMountPoint, newRoot)
+	}
+
+	putOld := filepath.Join(newRoot, oldRootDirName)
+	if err := os.Mkdir(putOld, oldRootPerm); err != nil && !os.IsExist(err) {
+		return fmt.Errorf("creating %q for pivot_root: %w", putOld, err)
+	}
+
+	// Entering the new root first means the process holds no reference to the
+	// old one when it is detached below.
+	if err := unix.Chdir(newRoot); err != nil {
+		return fmt.Errorf("entering the new root %q: %w", newRoot, err)
+	}
+
+	if err := unix.PivotRoot(newRoot, putOld); err != nil {
+		return fmt.Errorf("pivot_root to %q: %w", newRoot, translatePermission(err))
+	}
+
+	// "/" now means the new root, and the old one hangs off it.
+	if err := unix.Chdir("/"); err != nil {
+		return fmt.Errorf("entering the pivoted root: %w", err)
+	}
+
+	oldRoot := string(filepath.Separator) + oldRootDirName
+	if err := unix.Unmount(oldRoot, unix.MNT_DETACH); err != nil {
+		return fmt.Errorf("detaching the old root at %q: %w", oldRoot, translatePermission(err))
+	}
+
+	// ... the empty directory the old root hung from is removed here.
+	return nil
+}
+```
+
+<div class="callout callout--gotcha">
+<span class="callout-title">why not chroot</span>
+<p><code>chroot</code> only changes the calling process's root <em>directory</em>. the old root stays mounted, stays listed in the process's own mount table, and is still reachable through the classic <code>mkdir tmp; chroot tmp; chdir(../../..)</code> walk. after <code>pivot_root</code> and the detach above, there is nothing left to walk back to.</p>
+</div>
+
+this was also where i started seeing how many little details are involved in something that looks extremely simple from the outside.
+
+one of those details is that a mount destination is a path *inside* a root filesystem i didn't create. resolving `/etc/hosts` the way the host would is exactly how a bind mount ends up writing to the host's `/etc`, so forge resolves every path component itself, rebasing absolute symlinks against the container's root instead of following them out.
+
+### stage 3: resource limits
+
+isolation isn't enough.
+
+what happens if a process inside the container decides to use as much memory as possible? or creates thousands of processes? or tries to use all of the cpu?
+
+that's where cgroups come in.
+
+forge uses cgroups to put limits on resources such as memory, cpu and the number of processes.
+
+with cgroups v2 a "limit" is genuinely just a string written into a file, so the whole thing splits cleanly into a pure function that decides what the kernel is told, and the write itself:
+
+`internal/cgroup/cgroup.go`
+
+```go
+func (l Limits) Files() []File {
+	var files []File
+
+	if l.MemoryMax != nil {
+		files = append(files,
+			File{Name: "memory.max", Value: l.MemoryMax.String()},
+			// Swap is limited alongside memory, never independently.
+			File{Name: "memory.swap.max", Value: swapFor(*l.MemoryMax), Optional: true},
+		)
+	}
+	if l.CPU != nil {
+		files = append(files, File{Name: "cpu.max", Value: l.CPU.String()})
+	}
+	if l.CPUWeight != nil {
+		files = append(files, File{Name: "cpu.weight", Value: l.CPUWeight.String()})
+	}
+	if l.PIDsMax != nil {
+		value := Unlimited
+		if *l.PIDsMax >= 0 {
+			value = strconv.FormatInt(*l.PIDsMax, 10)
+		}
+		files = append(files, File{Name: "pids.max", Value: value})
+	}
+
+	return files
+}
+```
+
+and joining the cgroup is one write too:
+
+`internal/cgroup/apply.go`
+
+```go
+// addProc makes the process a member of the cgroup at dir by writing its PID
+// to cgroup.procs.
+//
+// Writing a PID moves the whole thread group, and every process it forks from
+// then on is a member too. It does not move processes it has *already* forked,
+// which is why internal/runtime attaches the container's init before the init
+// is allowed to proceed past its handshake.
+func addProc(dir string, pid int) error {
+	return writeControlFile(dir, fileProcs, strconv.Itoa(pid))
+}
+```
+
+that comment is the whole timing problem in stage 3. limits have to be in place *before* the container runs its first instruction, otherwise there is a window where an unlimited process already exists.
+
+so the container isn't just isolated. it also has limits on what it is allowed to consume.
+
+### stage 4: networking
+
+then came networking.
+
+a container isn't very useful if it can't communicate with anything.
+
+forge creates isolated network namespaces and sets up networking using things like veth pairs and a bridge. it also handles ip allocation and nat so that containers can communicate and reach the outside world.
+
+this is the part i underestimated the most. everything the kernel is told here goes over a raw netlink socket, with no netlink library and no shelling out to `ip` or `iptables`. which means a netlink message is just a byte layout you have to get exactly right:
+
+`internal/network/network.go`
+
+```go
+// nlAttr encodes one netlink attribute: a length, a type, the payload, and
+// enough padding to align the next attribute.
+//
+// The encoded length covers the header and the payload but *not* the padding,
+// which is why this cannot be a simple append of a header to a body.
+func nlAttr(typ uint16, payload []byte) []byte {
+	length := nlAttrHdrLen + len(payload)
+	buf := make([]byte, nlAlign(length))
+
+	order.PutUint16(buf[0:2], uint16(length))
+	order.PutUint16(buf[2:4], typ)
+	copy(buf[nlAttrHdrLen:], payload)
+
+	return buf
+}
+```
+
+and once you can build attributes, an operation that sounds enormous ("move this interface into the container's network namespace") turns out to be one message:
+
+`internal/network/namespace.go`
+
+```go
+func moveLinkToNetns(c *nlConn, index int32, pid int) error {
+	body := concat(
+		ifInfoMsg(index, 0, 0),
+		nlAttrU32(unix.IFLA_NET_NS_PID, uint32(pid)),
+	)
+
+	if err := c.execute(unix.RTM_NEWLINK, 0, body); err != nil {
+		return fmt.Errorf("moving interface %d into the network namespace of pid %d: %w", index, pid, err)
+	}
+
+	return nil
+}
+```
+
+<div class="callout callout--note">
+<span class="callout-title">a small design decision</span>
+<p>forge never enters the container's network namespace to configure it. <code>setns(2)</code> changes the namespace of the calling <em>thread</em>, and in go that means locking an os thread and hoping nothing migrates. get it wrong and forge itself is left sitting inside a container's network namespace. so the parent does the one thing only it can do, which is move the interface into a namespace it can name by pid, and the container configures its own interface from a plain description that arrived over a pipe.</p>
+</div>
+
+this was probably one of the parts where the command:
+
+```bash
+forge run ...
+```
+
+hides the most work.
+
+behind that one command, forge has to create and connect a whole network environment for the container.
+
+### stage 5: images
+
+at this point i could create an isolated environment, but what exactly am i going to run inside it?
+
+that's where container images come in.
+
+forge supports oci images. so when i run something like:
+
+```bash
+forge run alpine:3.20 /bin/sh
+```
+
+forge can pull the image, verify it, unpack its layers, and use that filesystem as the container's root filesystem.
+
+verification is the part i cared about most here. every document and every blob is named by the sha-256 of its own bytes, so it can be checked at every boundary the bytes cross, and forge checks at all of them: in flight as the registry streams them, again on the write to the cache, and again when a layer is decompressed for use.
+
+`internal/image/blob.go`
+
+```go
+// FetchBlob streams one blob into w, verifying it as the bytes pass (FR-5.2).
+//
+// Both the digest and the length are checked. A hash mismatch alone would catch
+// a truncated response, but "the registry sent 3 MB of the 5 MB it promised" is
+// the sentence an operator can act on, and "the hash was wrong" is not.
+func (c *Client) FetchBlob(ctx context.Context, ref Reference, d Descriptor, w io.Writer) error {
+	hasher, err := newHasher(d.Digest)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.get(ctx, ref, c.endpoint(ref, "blobs", d.Digest), nil)
+	if err != nil {
+		return err
+	}
+	defer drain(resp, c.logger)
+
+	written, err := io.Copy(io.MultiWriter(w, hasher), resp.Body)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		return fmt.Errorf("%w: downloading %s after %d bytes: %w",
+			ErrRegistryUnavailable, d.Digest, written, err)
+	}
+
+	if d.Size > 0 && written != d.Size {
+		return fmt.Errorf("%w: %s sent %d bytes for %s, but its descriptor says %d",
+			ErrDigestMismatch, ref.Host(), written, d.Digest, d.Size)
+	}
+
+	if computed := formatDigest(hasher); computed != d.Digest {
+		return fmt.Errorf("%w: %d bytes from %s hash to %s, but were requested as %s",
+			ErrDigestMismatch, written, ref.Host(), computed, d.Digest)
+	}
+
+	return nil
+}
+```
+
+it also has image caching so that already downloaded content doesn't have to be downloaded again every time. layers are keyed by digest, so the second run of the same image downloads nothing.
+
+<div class="callout callout--limit">
+<span class="callout-title">what this proves, and what it doesn't</span>
+<p>this is integrity, not authenticity. it proves the bytes are the bytes that digest names. it does not prove who made them. signature and provenance verification is out of scope for forge.</p>
+</div>
+
+this was the part that made the project feel much closer to an actual container runtime.
+
+### stage 6: the runtime
+
+the final stage was taking all of these pieces and turning them into an actual runtime.
+
+instead of having a collection of things that can create namespaces or configure networking, forge now has a container lifecycle.
+
+you can:
+
+<div class="diagram">
+<div class="diagram-title">the container lifecycle</div>
+<div class="nodes">
+<div class="node"><b>run</b><span>create and start a container, attached</span></div>
+<div class="node"><b>ps</b><span>what is running, from the on-disk state store</span></div>
+<div class="node"><b>exec</b><span>a second process inside its namespaces</span></div>
+<div class="node"><b>logs</b><span>captured stdout/stderr, attached or not</span></div>
+<div class="node"><b>stop</b><span>sigterm, then sigkill after the timeout</span></div>
+<div class="node node--accent"><b>rm</b><span>remove it and everything still held for it</span></div>
+</div>
+<div class="diagram-caption">containers are recorded in a crash-safe on-disk state store, which is what lets a second terminal see, enter and stop a container the first terminal started.</div>
+</div>
+
+you can start a container, see which containers are running, execute a command inside an existing container, read its logs, stop it and finally remove it.
+
+<div class="terminal">
+<div class="terminal-bar"><span></span><span></span><span></span><em>bash</em></div>
+<pre class="terminal-body"><code><b>sudo forge run --keep alpine:3.20 /bin/sh -c 'while :; do date; sleep 1; done'</b>
+<span class="gap"></span><i># in another terminal</i>
+<b>sudo forge ps</b>
+CONTAINER ID   IMAGE          COMMAND        STATUS    CREATED         PID
+7f3c9a1b2d04   alpine:3.20    /bin/sh -c …   running   12 seconds ago  48213
+<span class="gap"></span><b>sudo forge exec 7f3c9a1b2d04 /bin/ps</b>
+<i># the container's processes, not the host's</i></code></pre>
+</div>
+
+that's when forge finally felt like a complete project to me.
+
+### the whole thing, in one picture
+
+by stage 6 there are six primitives that all have to happen in a particular order, split across two processes, because most of what makes a container a container can only be done by code already running *inside* the new namespaces. so forge doesn't start the container's binary directly. it starts *itself* again, and that second copy does the rest to itself.
+
+<div class="diagram">
+<div class="diagram-title">forge run: parent and child</div>
+<div class="lanes">
+<div>
+<div class="lane-head">parent: forge run</div>
+<div class="step"><kbd>1</kbd><span>resolve the image reference (pure, no i/o)</span></div>
+<div class="step"><kbd>2</kbd><span>fetch the manifest, resolving the tag to an immutable digest</span></div>
+<div class="step"><kbd>3</kbd><span>download only the layers the blob cache is missing</span></div>
+<div class="step"><kbd>4</kbd><span>verify digests: on the wire, on the write, and at use</span></div>
+<div class="rule">nothing on the host exists yet</div>
+<div class="step"><kbd>5</kbd><span>construct the rootfs: layers unpacked, base first</span></div>
+<div class="step"><kbd>6</kbd><span>build the mount plan its init will apply</span></div>
+<div class="step"><kbd>7</kbd><span>create the cgroup leaf and write the limits</span></div>
+<div class="step"><kbd>8</kbd><span>bridge, nat and an address, claimed before there is a container to leak it</span></div>
+<div class="rule">clone(2)</div>
+<div class="step step--accent"><kbd>9</kbd><span>start the child, attach its pid to the cgroup, move the interface into its namespace, plug the host end into the bridge</span></div>
+<div class="step"><kbd>10</kbd><span>send the payload down the pipe, releasing the child</span></div>
+<div class="step"><kbd>11</kbd><span>wait: supervise until the container exits</span></div>
+<div class="step"><kbd>12</kbd><span>unwind the cleanup stack, in reverse</span></div>
+</div>
+<div>
+<div class="lane-head">child: /proc/self/exe __init</div>
+<div class="step step--muted"><kbd>·</kbd><span>blocked on the payload pipe, running nothing</span></div>
+<div class="step"><kbd>a</kbd><span><code>namespace.Apply</code>: mount tree made private first, or every mount below it propagates to the host</span></div>
+<div class="step"><kbd>b</kbd><span><code>network.Configure</code>: the pushed-in interface brought up and routed, while netlink is all that is needed</span></div>
+<div class="step"><kbd>c</kbd><span><code>mount.Apply</code>: made while the host filesystem is still reachable, because bind sources are host paths</span></div>
+<div class="step"><kbd>d</kbd><span><code>mount.PivotRoot</code>: "/" becomes the container's root, the old one is detached</span></div>
+<div class="step"><kbd>e</kbd><span><code>chdir</code>: the working directory, now a container path</span></div>
+<div class="step step--accent"><kbd>f</kbd><span><code>execve</code>: the process becomes the container</span></div>
+</div>
+</div>
+<div class="diagram-caption">steps 1 to 4 come first because they create nothing. a typo in an image name is the commonest failure in the whole thing, and it leaves the host bit-for-bit unchanged. the cleanup stack unwinds in reverse (network, then cgroup, then filesystem) because the container may still hold an interface, a cgroup cannot be removed while a process is in it, and the filesystem is the thing a still-running container has open.</div>
+</div>
+
+the child side of that is small enough to read in one go, and the order is load-bearing at every single line:
+
+`internal/runtime/init.go`
+
+```go
+// Init is the container's entry point, executed by the re-exec'd forge binary
+// inside the new namespaces created by clone(2).
+func Init() error {
+	payload, err := readInitPayload()
+	if err != nil {
+		return err
+	}
+
+	if err := namespace.Apply(payload.Namespace); err != nil {
+		return err
+	}
+
+	if err := configureNetwork(payload); err != nil {
+		return err
+	}
+
+	if payload.Mount != nil {
+		if err := mount.Apply(*payload.Mount); err != nil {
+			return err
+		}
+		if err := mount.PivotRoot(payload.Mount.Root); err != nil {
+			return err
+		}
+	}
+
+	if err := enterWorkingDir(payload.WorkingDir); err != nil {
+		return err
+	}
+
+	path, err := resolveCommand(payload.Command[0], payload.Env)
+	if err != nil {
+		return err
+	}
+
+	if err := syscall.Exec(path, payload.Command, payload.Env); err != nil {
+		return fmt.Errorf("executing %s: %w", path, err)
+	}
+
+	// Unreachable: a successful execve never returns.
+	return errors.New("execve returned without an error")
+}
+```
+
+on success this function never returns. `execve` replaces the process with the container's binary, which inherits its pid. and inside a pid namespace, that pid is 1.
+
+## why didn't i just use docker?
+
+because that wasn't the point.
+
+if i just wanted to run containers, i would use docker. the whole reason i made forge was to understand what docker and other container runtimes are actually doing underneath.
+
+using something is one thing. building a smaller version yourself is a completely different experience.
+
+when you're forced to implement the pieces yourself, you can't just say "docker handles that."
+
+you have to figure out what "that" actually means.
+
+how does the process get isolated? how does the filesystem change? how does networking get connected? how are resources limited? how does the image become a filesystem? how does everything get cleaned up when the container stops?
+
+those were the things i wanted answers to.
+
+## what i learned from building it
+
+the biggest thing i learned is that a container isn't really one big complicated thing. it's a bunch of smaller linux features working together.
+
+namespaces handle isolation. cgroups handle resource limits. the filesystem gives the process its own environment. networking connects it to the outside world. oci images provide the filesystem and configuration. and the runtime puts all of those pieces together.
+
+once you break it down like that, the word "container" becomes a lot less mysterious.
+
+## and obviously, things went wrong
+
+this wasn't just me writing some code and everything magically working.
+
+there were plenty of moments where something looked correct but didn't actually work the way i expected, especially with things like networking, cleanup, process handling and filesystem setup.
+
+and that's actually one of the reasons i wanted to build this instead of just reading about containers.
+
+when something breaks, you can't skip over the details. you have to figure out exactly which part of the system is responsible.
+
+that ended up teaching me a lot more than just reading a diagram of how containers work.
+
+## how i tested it
+
+i also didn't want forge to be one of those projects where the readme says it works because one command worked once.
+
+the project has unit tests and integration tests covering the different parts of the runtime. i also use race detection and linting as part of the validation.
+
+```bash
+make test               # unit tests, with -race, no root required
+make test-integration   # privileged integration tests (root, linux)
+make lint               # golangci-lint
+```
+
+the split matters more than it looks. everything that is pure (clone flags, cgroup limit files, netlink byte layouts, subnet arithmetic, mount-path resolution) is a function from values to bytes, so it can be asserted without a kernel. everything that actually touches the kernel lives behind a build tag and runs as root.
+
+the final testing isn't just about checking whether a container starts. i need to know that processes are actually isolated, the filesystem is actually isolated, resource limits actually work, networking actually works, images are handled correctly, commands like `exec`, `logs`, `stop` and `rm` work, multiple containers can coexist, and cleanup actually happens.
+
+because a container that starts but leaves half its resources behind isn't really a finished runtime.
+
+## forge isn't docker
+
+just to be clear, forge isn't trying to be a replacement for docker or any other production container runtime.
+
+it's a learning project.
+
+i wanted something small enough that i could actually understand the whole thing.
+
+something where i could go from:
+
+<div class="diagram">
+<div class="diagram-title">process → runtime</div>
+<div class="nodes">
+<div class="node"><b>process</b><span>still just a normal process on the host</span></div>
+<div class="node"><b>namespace</b><span>its own pids, hostname, mounts, network</span></div>
+<div class="node"><b>filesystem</b><span>pivot_root, bind mounts, its own "/"</span></div>
+<div class="node"><b>cgroup</b><span>memory, cpu and pid ceilings</span></div>
+<div class="node"><b>network</b><span>veth, bridge, an address, nat</span></div>
+<div class="node"><b>image</b><span>oci layers, verified and unpacked</span></div>
+<div class="node node--accent"><b>runtime</b><span>a lifecycle that ties all six together</span></div>
+</div>
+</div>
+
+and understand what each part is doing.
+
+that's what forge is.
+
+<div class="callout callout--limit">
+<span class="callout-title">not production</span>
+<p>forge is an educational systems project. it is not production-hardened and should not be used to run untrusted workloads. there is no seccomp, no apparmor or selinux integration, no rootless mode, no image building and no orchestration. those are deliberate non-goals, not a todo list.</p>
+</div>
+
+## if you're not a tech person
+
+if everything above sounded confusing, here's the easiest way i can explain it.
+
+so basically imagine you have a game on your laptop. it works perfectly. you send that same game to your friend, and they try to run it but it doesn't work.
+
+maybe their laptop has different software installed. maybe they're missing something your laptop has. maybe their settings are different.
+
+that's the classic:
+
+> **"it works on my laptop."**
+
+a container is kind of like giving that game its own little room with the things it needs inside.
+
+instead of depending completely on what the rest of the laptop looks like, it gets its own controlled environment.
+
+**forge is something i built to create those little rooms.**
+
+that's probably the simplest way i can explain the entire project.
+
+thanks for reading.
