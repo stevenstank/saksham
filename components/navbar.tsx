@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,23 @@ const navItems = [
 export function Navbar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [openedOn, setOpenedOn] = useState(pathname);
+
+  // Back/forward navigation doesn't go through the menu links' onClick, so
+  // close the menu whenever the route changes underneath it.
+  if (openedOn !== pathname) {
+    setOpenedOn(pathname);
+    setIsOpen(false);
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen]);
 
   return (
     <nav 
@@ -23,7 +40,7 @@ export function Navbar() {
       aria-label="Main navigation"
     >
       <div className="mx-auto max-w-4xl px-6 sm:px-8">
-        <div className="flex h-20 items-center justify-center">
+        <div className="relative flex h-16 md:h-20 items-center justify-center">
           {/* Desktop Navigation */}
           <div className="hidden md:flex md:items-center md:gap-12 relative" role="navigation" aria-label="Desktop navigation">
             {navItems.map((item) => (
@@ -52,7 +69,7 @@ export function Navbar() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden absolute right-6 sm:right-8 text-foreground-secondary hover:text-foreground focus:outline-none focus:ring-2 focus:ring-accent rounded p-2 transition-all"
+            className="md:hidden absolute -right-2.5 text-foreground-secondary hover:text-foreground focus:outline-none focus:ring-2 focus:ring-accent rounded p-2.5 transition-all"
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-expanded={isOpen}
             aria-controls="mobile-menu"
@@ -65,7 +82,7 @@ export function Navbar() {
         {isOpen && (
           <div 
             id="mobile-menu"
-            className="md:hidden py-6 space-y-4"
+            className="md:hidden pb-4 space-y-1"
             role="navigation"
             aria-label="Mobile navigation"
           >
@@ -75,7 +92,7 @@ export function Navbar() {
                 href={item.href}
                 onClick={() => setIsOpen(false)}
                 className={cn(
-                  "block text-base transition-all hover:text-foreground focus:outline-none focus:ring-2 focus:ring-accent rounded px-2 py-1 relative",
+                  "block text-base transition-all hover:text-foreground focus:outline-none focus:ring-2 focus:ring-accent rounded px-2 py-3 relative",
                   pathname === item.href
                     ? "text-foreground"
                     : "text-foreground-secondary"
@@ -85,7 +102,7 @@ export function Navbar() {
               >
                 {item.name}
                 {pathname === item.href && (
-                  <span className="absolute bottom-0 left-0 w-8 h-[2px] bg-[#F4B942] rounded-full" style={{ boxShadow: '0 0 8px rgba(244, 185, 66, 0.5)' }} />
+                  <span className="absolute bottom-1.5 left-2 w-8 h-[2px] bg-[#F4B942] rounded-full" style={{ boxShadow: '0 0 8px rgba(244, 185, 66, 0.5)' }} />
                 )}
               </Link>
             ))}

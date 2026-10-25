@@ -13,8 +13,12 @@ export async function generateStaticParams() {
   }));
 }
 
-export default async function ProjectPage({ params }: { params: { slug: string } }) {
-  const project = await getPostBySlug('projects', params.slug);
+// Only slugs with a file in content/projects exist; anything else is a 404.
+export const dynamicParams = false;
+
+export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const project = await getPostBySlug('projects', slug);
 
   if (!project) {
     notFound();
@@ -47,14 +51,16 @@ export default async function ProjectPage({ params }: { params: { slug: string }
               ))}
             </div>
 
-            <a
-              href={`https://github.com/saksham/${project.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent-secondary transition-colors"
-            >
-              View on GitHub
-            </a>
+            {project.github && (
+              <a
+                href={project.github}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 py-2 text-sm text-accent hover:text-accent-secondary transition-colors"
+              >
+                View on GitHub
+              </a>
+            )}
           </div>
 
           <div className="prose prose-invert prose-zinc max-w-none">

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { File, Folder, FolderOpen } from "lucide-react";
+import { File, Folder } from "lucide-react";
 
 interface FileNode {
   name: string;

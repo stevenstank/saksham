@@ -1,4 +1,4 @@
-import { createHighlighter } from 'shiki';
+import { createHighlighter, type BundledLanguage } from 'shiki';
 
 // The promise is cached rather than the resolved highlighter: getHighlighter is
 // called concurrently (every code fence in a post is highlighted in parallel),
@@ -19,7 +19,7 @@ export async function getHighlighter() {
 export async function highlightCode(code: string, lang: string = 'text') {
   const highlighter = await getHighlighter();
   return highlighter.codeToHtml(code, {
-    lang: lang as any,
+    lang: lang as BundledLanguage | 'text',
     theme: 'github-dark',
   });
 }

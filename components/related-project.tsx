@@ -13,7 +13,7 @@ export function RelatedProject({ name, description, github, href }: RelatedProje
   return (
     <div className="mt-16 pt-8 border-t border-zinc-900">
       <h3 className="text-sm text-foreground-secondary mb-4">Related Project</h3>
-      <div className="p-6 rounded-xl border border-zinc-900 bg-zinc-950/30 hover:border-zinc-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-zinc-900/20">
+      <div className="p-5 sm:p-6 rounded-xl border border-zinc-900 bg-zinc-950/30 hover:border-zinc-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-zinc-900/20">
         <div className="space-y-4">
           <div>
             <h4 className="text-xl font-medium text-foreground mb-2" style={{ textShadow: '0 0 8px rgba(250, 250, 250, 0.1)' }}>
@@ -23,19 +23,19 @@ export function RelatedProject({ name, description, github, href }: RelatedProje
               {description}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <a
               href={github}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-foreground-secondary hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-2 py-2 text-sm text-foreground-secondary hover:text-foreground transition-colors"
             >
               <FaGithub className="h-4 w-4" />
               GitHub
             </a>
             <Link
               href={href}
-              className="inline-flex items-center gap-2 text-sm text-[#F4B942] hover:text-[#f5c76b] transition-colors"
+              className="inline-flex items-center gap-2 py-2 text-sm text-[#F4B942] hover:text-[#f5c76b] transition-colors"
             >
               View Project
               <ArrowRight className="h-4 w-4" />

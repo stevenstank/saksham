@@ -8,13 +8,13 @@ import Link from "next/link";
 export default function Home() {
   return (
     <Container>
-      <Section className="pt-24 pb-16">
+      <Section className="pt-12 sm:pt-24 pb-16">
         <FadeIn>
           <div className="space-y-8">
             <div className="space-y-3">
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-medium tracking-tight">
                 <span className="text-[#F4B942]" style={{ textShadow: '0 0 8px rgba(244, 185, 66, 0.2), 0 0 16px rgba(244, 185, 66, 0.1)' }}>
-                  hi, i'm
+                  hi, i&apos;m
                 </span>
                 <br />
                 <span className="text-[#FAFAFA]" style={{ textShadow: '0 0 8px rgba(250, 250, 250, 0.15), 0 0 16px rgba(250, 250, 250, 0.08)' }}>
@@ -31,16 +31,16 @@ export default function Home() {
             </div>
 
             <div className="max-w-2xl space-y-5">
-              <p className="text-xl text-foreground-secondary leading-relaxed">
-                I'm a computer science student who enjoys building software from the ground up.
+              <p className="text-lg sm:text-xl text-foreground-secondary leading-relaxed">
+                I&apos;m a computer science student who enjoys building software from the ground up.
               </p>
-              <p className="text-xl text-foreground-secondary leading-relaxed">
-                Backend engineering and distributed systems slowly became the rabbit holes I kept coming back to. Most of the projects here started with a simple question, and the fastest way I've found to answer it is to build it myself.
+              <p className="text-lg sm:text-xl text-foreground-secondary leading-relaxed">
+                Backend engineering and distributed systems slowly became the rabbit holes I kept coming back to. Most of the projects here started with a simple question, and the fastest way I&apos;ve found to answer it is to build it myself.
               </p>
-              <p className="text-xl text-foreground-secondary leading-relaxed">
+              <p className="text-lg sm:text-xl text-foreground-secondary leading-relaxed">
                 This website is where I share my <Link href="/projects" className="text-foreground hover:text-accent transition-colors underline decoration-dotted underline-offset-4 hover:decoration-solid">projects</Link> and write about everything I learn along the way on my <Link href="/blog" className="text-foreground hover:text-accent transition-colors underline decoration-dotted underline-offset-4 hover:decoration-solid">blog</Link>.
               </p>
-              <p className="text-xl text-foreground-secondary leading-relaxed">
+              <p className="text-lg sm:text-xl text-foreground-secondary leading-relaxed">
                 Currently exploring distributed systems, backend engineering, and writing more than just code.
               </p>
             </div>

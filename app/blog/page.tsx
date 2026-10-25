@@ -1,32 +1,33 @@
 import { Container } from "@/components/container";
 import { Section } from "@/components/section";
-import { BlogCard } from "@/components/blog-card";
-import { getPosts } from "@/lib/mdx";
+import { BlogCard, UpcomingBlogCard } from "@/components/blog-card";
+import { getPosts, getUpcomingPosts } from "@/lib/mdx";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export default async function BlogPage() {
   const posts = await getPosts('blog');
+  const upcoming = await getUpcomingPosts('blog');
 
   return (
     <Container>
       <Section>
         <div className="space-y-10">
           <div>
-            <h1 className="text-5xl sm:text-6xl font-medium text-[#F4B942] tracking-tight mb-8" style={{ textShadow: '0 0 8px rgba(244, 185, 66, 0.2), 0 0 16px rgba(244, 185, 66, 0.1)' }}>
+            <h1 className="text-5xl sm:text-6xl font-medium text-[#F4B942] tracking-tight mb-6 sm:mb-8" style={{ textShadow: '0 0 8px rgba(244, 185, 66, 0.2), 0 0 16px rgba(244, 185, 66, 0.1)' }}>
               Blog
             </h1>
-            <p className="text-xl text-foreground-secondary max-w-3xl leading-relaxed">
-              I mostly write about the things I'm building, the bugs that wasted my time, and the engineering rabbit holes worth going down.
+            <p className="text-lg sm:text-xl text-foreground-secondary max-w-3xl leading-relaxed">
+              I mostly write about the things I&apos;m building, the bugs that wasted my time, and the engineering rabbit holes worth going down.
             </p>
           </div>
 
-          {posts.length === 0 ? (
+          {posts.length === 0 && upcoming.length === 0 ? (
             <div className="py-20 text-center">
               <div className="text-4xl mb-6" style={{ textShadow: '0 0 12px rgba(244, 185, 66, 0.2)' }}>✦</div>
               <h2 className="text-2xl font-medium text-foreground mb-4">No posts yet.</h2>
               <p className="text-lg text-foreground-secondary max-w-xl mx-auto mb-8 leading-relaxed italic">
-                "The first post is taking longer because I'm probably rebuilding something I could've just used."
+                &quot;The first post is taking longer because I&apos;m probably rebuilding something I could&apos;ve just used.&quot;
               </p>
               <Link
                 href="/projects"
@@ -38,6 +39,17 @@ export default async function BlogPage() {
             </div>
           ) : (
             <div className="grid gap-6">
+              {upcoming.map((post) => (
+                <UpcomingBlogCard
+                  key={post.slug}
+                  slug={post.slug}
+                  title={post.title}
+                  description={post.description}
+                  tags={post.tags}
+                  project={post.project}
+                  projectHref={post.projectHref}
+                />
+              ))}
               {posts.map((post) => (
                 <BlogCard
                   key={post.slug}

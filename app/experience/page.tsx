@@ -1,6 +1,5 @@
 import { Container } from "@/components/container";
 import { Section } from "@/components/section";
-import { cn } from "@/lib/utils";
 
 const experience = [
   {
@@ -18,10 +17,10 @@ export default function ExperiencePage() {
       <Section>
         <div className="space-y-10">
           <div>
-            <h1 className="text-5xl sm:text-6xl font-medium text-[#F4B942] tracking-tight mb-8" style={{ textShadow: '0 0 8px rgba(244, 185, 66, 0.2), 0 0 16px rgba(244, 185, 66, 0.1)' }}>
+            <h1 className="text-5xl sm:text-6xl font-medium text-[#F4B942] tracking-tight mb-6 sm:mb-8" style={{ textShadow: '0 0 8px rgba(244, 185, 66, 0.2), 0 0 16px rgba(244, 185, 66, 0.1)' }}>
               Experience
             </h1>
-            <p className="text-xl text-foreground-secondary max-w-3xl leading-relaxed">
+            <p className="text-lg sm:text-xl text-foreground-secondary max-w-3xl leading-relaxed">
               My professional journey in developing.
             </p>
           </div>

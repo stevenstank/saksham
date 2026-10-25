@@ -62,7 +62,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <Section>
         <Link
           href="/blog"
-          className="inline-flex items-center gap-2 text-sm text-foreground-secondary hover:text-foreground transition-colors mb-8"
+          className="inline-flex items-center gap-2 py-2 text-sm text-foreground-secondary hover:text-foreground transition-colors mb-6 sm:mb-8"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to all posts
@@ -70,11 +70,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
         <article className="space-y-8 max-w-[750px] mx-auto">
           <div className="space-y-4">
-            <h1 className="text-4xl sm:text-5xl font-medium text-foreground tracking-tight">
+            <h1 className="text-3xl sm:text-5xl font-medium text-foreground tracking-tight text-balance break-words">
               {post.title}
             </h1>
             
-            <div className="flex flex-wrap items-center gap-4 text-sm text-foreground-secondary">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-foreground-secondary">
               <time>{post.formattedDate}</time>
               {post.formattedUpdated && (
                 <>
@@ -107,13 +107,13 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           )}
 
           {(previous || next) && (
-            <nav className="flex justify-between items-center pt-8 border-t border-zinc-900 mt-12">
+            <nav aria-label="More posts" className="flex flex-col gap-6 sm:flex-row sm:justify-between sm:items-center pt-8 border-t border-zinc-900 mt-12">
               {previous ? (
                 <Link
                   href={`/blog/${previous.slug}`}
-                  className="flex items-center gap-2 text-sm text-foreground-secondary hover:text-foreground transition-colors group"
+                  className="flex items-center gap-2 py-1 text-sm text-foreground-secondary hover:text-foreground transition-colors group sm:max-w-[45%]"
                 >
-                  <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                  <ArrowLeft className="h-4 w-4 shrink-0 group-hover:-translate-x-1 transition-transform" />
                   <div className="text-left">
                     <div className="text-xs text-foreground-secondary/60 mb-1">Previous</div>
                     <div className="font-medium">{previous.title}</div>
@@ -126,13 +126,13 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               {next ? (
                 <Link
                   href={`/blog/${next.slug}`}
-                  className="flex items-center gap-2 text-sm text-foreground-secondary hover:text-foreground transition-colors group"
+                  className="flex items-center justify-end gap-2 py-1 text-sm text-foreground-secondary hover:text-foreground transition-colors group sm:max-w-[45%] sm:ml-auto"
                 >
                   <div className="text-right">
                     <div className="text-xs text-foreground-secondary/60 mb-1">Next</div>
                     <div className="font-medium">{next.title}</div>
                   </div>
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="h-4 w-4 shrink-0 group-hover:translate-x-1 transition-transform" />
                 </Link>
               ) : (
                 <div />

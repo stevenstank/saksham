@@ -3,10 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { format } from 'date-fns';
+import readingTime from 'reading-time';
 import { highlightCode } from './shiki';
-
-// reading-time is a CommonJS module, use require
-const readingTime = require('reading-time');
 
 const CONTENT_DIR = path.join(process.cwd(), 'content');
 
@@ -75,7 +73,7 @@ const markdown = new Marked({
 // The post stays stale until the dev server is restarted.
 const CACHE_POSTS = process.env.NODE_ENV === 'production';
 
-let postsCache: Map<string, any[]> | null = null;
+let postsCache: Map<string, Post[]> | null = null;
 
 export interface Post {
   slug: string;
@@ -89,12 +87,17 @@ export interface Post {
   readingTime: string;
   content: string;
   published: boolean;
+  /** `coming-soon` lists the post on /blog as an announcement only: it gets
+   *  no route, no date and no prev/next link until it is published. */
+  status?: 'coming-soon';
   project?: string;
   github?: string;
   projectHref?: string;
 }
 
-export async function getPosts(type: 'blog' | 'projects'): Promise<Post[]> {
+// Every post with `published` not set to false, newest first, including
+// coming-soon announcements. Pages use getPosts / getUpcomingPosts below.
+async function loadPosts(type: 'blog' | 'projects'): Promise<Post[]> {
   const cacheKey = type;
   
   if (CACHE_POSTS && postsCache?.has(cacheKey)) {
@@ -109,7 +112,7 @@ export async function getPosts(type: 'blog' | 'projects'): Promise<Post[]> {
 
   const files = fs.readdirSync(dir).filter(file => file.endsWith('.mdx'));
   
-  const posts = await Promise.all(files.map(async (filename) => {
+  const posts = await Promise.all(files.map(async (filename): Promise<Post> => {
     const filePath = path.join(dir, filename);
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     const { data, content } = matter(fileContent);
@@ -129,6 +132,7 @@ export async function getPosts(type: 'blog' | 'projects'): Promise<Post[]> {
       readingTime: readingTime(content).text,
       content: await markdown.parse(content),
       published: data.published !== false,
+      status: data.status === 'coming-soon' ? 'coming-soon' : undefined,
       project: data.project,
       github: data.github,
       projectHref: data.projectHref,
@@ -147,6 +151,16 @@ export async function getPosts(type: 'blog' | 'projects'): Promise<Post[]> {
   }
 
   return publishedPosts;
+}
+
+export async function getPosts(type: 'blog' | 'projects'): Promise<Post[]> {
+  const posts = await loadPosts(type);
+  return posts.filter(post => post.status !== 'coming-soon');
+}
+
+export async function getUpcomingPosts(type: 'blog' | 'projects'): Promise<Post[]> {
+  const posts = await loadPosts(type);
+  return posts.filter(post => post.status === 'coming-soon');
 }
 
 export async function getPostBySlug(type: 'blog' | 'projects', slug: string): Promise<Post | null> {

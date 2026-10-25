@@ -16,7 +16,7 @@ const socialLinks = [
 
 export function SocialLinks({ className, showLabels = false }: SocialLinksProps) {
   return (
-    <div className={cn("flex items-center gap-6", className)}>
+    <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-6", className)}>
       {socialLinks.map((link) => {
         const Icon = link.icon;
         // A mailto: is handed to the mail client, so it must not open a tab.
