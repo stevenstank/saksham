@@ -32,8 +32,8 @@ const featuredProjects: Project[] = [
     featured: true,
     category: "Systems Engineering / Go",
     writeup: {
-      href: "/blog#building-atlas-inside-a-go-model-checker",
-      label: "Writeup coming soon",
+      href: "/blog/building-atlas-inside-a-go-model-checker",
+      label: "Read the writeup",
     },
   },
   {

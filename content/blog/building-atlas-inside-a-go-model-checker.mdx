@@ -1,10 +1,504 @@
 ---
 title: "Building Atlas: Inside a Go Model Checker"
-description: An upcoming technical article about building Atlas, exploring concurrency interleavings, producing counterexample traces, implementing branch-and-bound, and making engineering decisions around correctness and performance.
+description: An explicit-state model checker and assignment optimizer written in Go with only the standard library. How it explores every interleaving of a model, rebuilds counterexamples by replay, refuses to call a bounded run verified, and what its benchmarks did and didn't show.
+date: 2026-10-29
 tags: [go, model-checking, concurrency, systems]
 published: true
-status: coming-soon
 project: Atlas
 github: https://github.com/stevenstank/atlas
 projectHref: /projects#atlas
 ---
+
+# i built a model checker in go
+
+## so, what is atlas?
+
+atlas is an explicit-state model checker that i wrote in go. <a href="https://github.com/stevenstank/atlas" class="project-link" target="_blank" rel="noopener noreferrer">the source is on github ↗</a>
+
+by the time i started it, i already had forge, bolt and dispatch. a container runtime, a redis-like database, a distributed task runner. building a fourth thing in the same shape would have mostly meant repeating what i already knew. i wanted the next project to teach me concepts i hadn't touched yet, and to be deep enough that correctness and performance were actual engineering problems, not boxes to tick. a model checker fit that. its whole job is to be right, and how big a model it can handle comes down to how fast it gets through states.
+
+you give it a model: some initial states, and a function that, for any state, lists the states that can come next. atlas visits every reachable state breadth-first, recognizes states it has already seen, checks your invariants, and when one fails, hands you the exact sequence of steps that got there.
+
+it also has a second package, an optimizer for small assignment problems, which i'll get to.
+
+<div class="facts">
+<div class="fact"><b>v0.1.0</b><span>first tagged release, api may still change</span></div>
+<div class="fact"><b>0</b><span>dependencies outside the standard library</span></div>
+<div class="fact"><b>5</b><span>ways a run can end, only one of them "verified"</span></div>
+<div class="fact"><b>1,000</b><span>random graphs checked against an independent explorer</span></div>
+</div>
+
+it's a library, not a cli. it needs go 1.26, and you add it with:
+
+```bash
+go get github.com/stevenstank/atlas@v0.1.0
+```
+
+<div class="callout callout--limit">
+<span class="callout-title">what it checks, and what it doesn't</span>
+<p>atlas checks the model you write, not your production go code. the model is a separate thing, and a bug in the gap between model and code is invisible to it. an exhaustive run proves that every reachable state of that model, at the sizes you configured, satisfies your invariants. it says nothing about 4 nodes when you checked 3, nothing about liveness ("eventually x happens"), and nothing about whether your invariants were the right ones.</p>
+</div>
+
+here are two processes. each one adds 1 to a shared counter.
+
+the catch is that an increment isn't one step. a process reads the counter into a private register, and then writes that register plus 1 back. so the other process can run in between.
+
+in atlas, that looks like this:
+
+`check/example_test.go`
+
+```go
+func (m Counter) Next(s CounterState, emit func(string, CounterState) bool) {
+	for p := range 2 {
+		t := s // CounterState is a value, so t is a copy
+		switch {
+		case s.PC[p] == 0 && m.Atomic:
+			t.Counter, t.PC[p] = s.Counter+1, 2
+			if !emit(fmt.Sprintf("P%d increments to %d", p, t.Counter), t) {
+				return
+			}
+		case s.PC[p] == 0:
+			t.Reg[p], t.PC[p] = s.Counter, 1
+			if !emit(fmt.Sprintf("P%d reads %d", p, s.Counter), t) {
+				return
+			}
+		case s.PC[p] == 1:
+			t.Counter, t.PC[p] = s.Reg[p]+1, 2
+			if !emit(fmt.Sprintf("P%d writes %d", p, t.Counter), t) {
+				return
+			}
+		}
+	}
+}
+```
+
+the invariant is simple. once both processes are done, the counter should be 2.
+
+and atlas says it isn't:
+
+<div class="terminal">
+<div class="terminal-bar"><span></span><span></span><span></span><em>go test -run ExampleRun ./check</em></div>
+<pre class="terminal-body"><code><b>Violation: invariant "no lost update" is violated; counterexample has 4 steps</b>
+counterexample: invariant "no lost update" fails after 4 steps
+  step 0: initial state
+          {Counter:0 PC:[0 0] Reg:[0 0]}
+  step 1: P0 reads 0
+          {Counter:0 PC:[1 0] Reg:[0 0]}
+  step 2: P1 reads 0
+          {Counter:0 PC:[1 1] Reg:[0 0]}
+  step 3: P0 writes 1
+          {Counter:1 PC:[2 1] Reg:[0 0]}
+  step 4: P1 writes 1
+          {Counter:1 PC:[2 2] Reg:[0 0]}
+  the state after step 4 violates "no lost update"
+states 12, transitions 12, terminal states 0, max depth 4</code></pre>
+</div>
+
+both processes read 0 before either one writes. both write 1. one update is gone.
+
+you've probably seen this bug before. the interesting part isn't the bug. it's how it was found.
+
+if you wrote this as two real goroutines and a test, whether the test catches it depends on how the scheduler happens to interleave them on that run. atlas doesn't run anything. it takes the model, enumerates **every** ordering the model allows, and checks the invariant in every state it reaches. this model is tiny: atlas had admitted 12 states when it hit the bad one. the trace it prints is also the shortest possible path to the bug, which is not an accident (more on that later).
+
+make the increment atomic and the same run comes back with:
+
+```text
+Exhausted: verified: no reachable state violates any invariant
+states 4, transitions 4, terminal states 1, max depth 2
+```
+
+that word, `Exhausted`, ended up being what most of this project is about.
+
+## the model is three methods
+
+this is the entire contract between atlas and a model:
+
+`core/model.go`
+
+```go
+type Model[S, A any] interface {
+	Init(emit func(S) bool)
+	Next(s S, emit func(A, S) bool)
+	AppendKey(buf []byte, s S) []byte
+}
+```
+
+`S` is your state type and `A` is the action label that shows up in traces ("P0 reads 0"). invariants aren't part of the model, they're passed to the checker separately.
+
+the model pushes states into a callback instead of returning a slice. that means `Next` doesn't allocate a slice for every state it expands. the `bool` that `emit` returns is the more interesting part.
+
+it means "stop". when the engine finds a violation, or hits the state limit, `emit` returns `false`, and the model is supposed to return immediately. it never means "skip this one and keep going". duplicates and depth cutoffs still return `true`.
+
+there were three callback shapes on the table. one with no `bool` at all, which is simplest to write but means the engine can never ask a model to stop, so a `Next` that emits forever just hangs the run. one with `iter.Seq2`, which feels more idiomatic. and this one.
+
+the reason it isn't `iter.Seq2` is a small detail. the go spec says that after `yield` returns false, it "must not be called again". it doesn't say what happens if it is. in a scratch program, gc go1.26.1 panicked in that case, but that's toolchain behavior, not something the spec promises. with a plain `emit func(A, S) bool`, the misuse check is atlas's own code, so i know exactly what it detects.
+
+## state identity is bytes
+
+the third method, `AppendKey`, is how atlas knows two states are the same state.
+
+two states are the same if and only if their keys are equal, byte for byte. not if their hashes match. not if they look similar. the visited set is about as plain as it gets:
+
+`core/store.go`
+
+```go
+type Store struct {
+	ids    map[string]StateID
+	keys   []string
+	parent []StateID
+	edge   []uint32
+	depth  []uint32
+}
+```
+
+go's map hashes the key and then compares the full string, so a hash collision between two different states can't merge them. that's the whole reason this is a `map[string]StateID` and not a set of 64-bit hashes.
+
+tools like tlc store fingerprints instead, which saves a lot of memory but makes "every state was checked" a probabilistic statement. atlas doesn't have a mode like that. if one ever gets added, it has to be opt-in and its results have to be labeled as probabilistic.
+
+the cost of exact identity lands on the model author. your key has to be **canonical**:
+
+- if two states can behave differently, their keys must differ. otherwise atlas merges them and silently misses behavior. this is the dangerous direction.
+- if two states are really the same (a set stored as `[1,2]` or `[2,1]`), the key should normalize them. otherwise atlas explores duplicates, which is wasteful but safe.
+
+and you have to know which one applies. a set stored in a slice should be sorted inside `AppendKey`. a queue stored in a slice must *not* be, because order is the whole point of a queue.
+
+to make this easier to get right, `core` has a few helpers (`AppendUint`, `AppendInt`, `AppendBool`, `AppendString`) that are all self-delimiting. varints, and length-prefixed strings. so if you append fields in a fixed order, different field values always give different keys, and you can't accidentally get `"ab" + "c"` colliding with `"a" + "bc"`.
+
+## breadth-first, on purpose
+
+the search is single-threaded bfs with a fifo queue. every state is checked against the invariants once, when it is first discovered, before it goes on the queue.
+
+that combination gives the guarantee that matters most for traces: **the first violation atlas finds is at the minimum depth of any violating state**. so the counterexample has the fewest steps of any counterexample. bfs discovers states in order of non-decreasing depth, and each state's recorded parent is exactly one level shallower, so walking the parents back gives a path of exactly that length.
+
+dfs can't promise that. on a model with a long chain one way and a short shortcut to the bad state, dfs happily hands you the long one. and when you're trying to understand a concurrency bug, a 4-step trace and a 40-step trace are very different things to read.
+
+"shortest" has a precise meaning here, though. every transition counts as 1. if your model bundles three real-world events into one step, the trace is shortest in bundled steps.
+
+here's what the engine does with each state a model emits:
+
+`check/run.go`
+
+```go
+func (e *engine[S, A]) nextStep(g *guard, nested bool, parent core.StateID, depth uint32, s S) bool {
+	if !e.accept(g, nested) {
+		return false
+	}
+	ordinal := g.n
+	g.n++
+	key := e.key(s)
+	if e.end != nil {
+		return false
+	}
+	if _, seen := e.store.Lookup(key); seen {
+		e.stats.Transitions++
+		e.stats.Duplicates++
+		return true
+	}
+	if e.hasDepth && int(depth)+1 > e.depthLimit {
+		e.stats.Transitions++
+		e.stats.CutoffTransitions++
+		return true
+	}
+	if e.hasStates && e.store.Len() >= e.stateLimit {
+		e.stats.Transitions++
+		e.refuse(g, ExpansionPhase, int(depth)+1)
+		return false
+	}
+	if atCapacity(uint64(e.store.Len())) {
+		return e.stopCapacity(g)
+	}
+	e.stats.Transitions++
+	return e.admit(g, s, key, parent, ordinal, depth+1)
+}
+```
+
+the order of those checks is fixed: already seen, then too deep, then over the state limit, then admit and check. every emission takes exactly one of those branches and gets counted in exactly one counter. that's what lets the tests assert identities like `Transitions = (Admitted − InitAdmitted) + Duplicates + CutoffTransitions + refusals` on every run, including runs that failed.
+
+the depth check comes before the state limit on purpose. a successor beyond the depth limit could never be admitted anyway, whatever the state limit is, so checking depth first means the reason atlas reports is the limit that actually constrained the run.
+
+## atlas doesn't store the trace
+
+look at what `Store` keeps per state again: a key, a parent id, an **edge ordinal**, and a depth. no state values. no action labels.
+
+the edge ordinal is just "this state was the k-th thing its parent's `Next` call emitted". to build a counterexample, atlas walks the parent links back to an initial state, then re-runs the model forward: call `Init`, take emission number `edge[root]`, call `Next` on that, take emission number `edge[next]`, and so on.
+
+`check/trace.go`
+
+```go
+		switch {
+		case bad:
+			return Trace[S, A]{}, fmt.Errorf("%w (during trace replay, step %d)", ErrCallbackContract, i)
+		case !found:
+			return Trace[S, A]{}, fmt.Errorf("%w: step %d: emission %d no longer exists", ErrNondeterministic, i, want)
+		case string(e.key(st)) != e.store.Key(x):
+			return Trace[S, A]{}, fmt.Errorf("%w: step %d: replayed state has a different key", ErrNondeterministic, i)
+		}
+```
+
+so the trace costs about 8 bytes per state to remember (a 4-byte parent and a 4-byte ordinal), and rebuilding it costs some extra `Next` calls, paid once, only when there's actually a violation. in the benchmarks, rebuilding the deepest counterexample in the suite took about 40 µs of a ~160 ms run.
+
+the important case is the last one. replay only works if the model is deterministic, so every replayed state's key gets compared with the key that was stored when it was first discovered. if they differ, the model isn't deterministic, and atlas reports a `ModelError` instead of handing you a trace that doesn't actually lead anywhere.
+
+<div class="callout callout--note">
+<span class="callout-title">a counterexample you can't trust</span>
+<p>there's a test model whose <code>Next</code> increments an internal counter on every call, so it emits a different successor each time. the search sees one graph, and replay sees another. atlas reports <code>ErrNondeterministic</code>, not a <code>Violation</code>. within a run, replay is the only place atlas can notice this, though. impurity that never shows up along a replayed path goes undetected.</p>
+</div>
+
+## five ways a run can end
+
+this was all written down as rules before the engine existed.
+
+<div class="diagram">
+<div class="diagram-title">every run ends with exactly one status</div>
+<div class="nodes">
+<div class="node node--accent"><b>Exhausted</b><span>the frontier emptied, nothing was refused, no violation. the only verification result</span></div>
+<div class="node"><b>Violation</b><span>an admitted state broke an invariant. the trace is the evidence</span></div>
+<div class="node"><b>Bounded</b><span>a depth or state limit excluded at least one real state. no violation among the states that were checked</span></div>
+<div class="node"><b>Incomplete</b><span>canceled, deadline, memory, or capacity. nothing conclusive</span></div>
+<div class="node"><b>ModelError</b><span>the model panicked, broke the emit contract, or was nondeterministic. nothing</span></div>
+</div>
+<div class="diagram-caption">there is no <code>OK bool</code> on the result. a caller has to switch on the status, so a bounded run can't be read as a pass by accident.</div>
+</div>
+
+the printed form follows the same rule. only `Exhausted` says "verified". everything else says `NOT VERIFIED` and exactly what was shown. here's the 3×3 grid model from the conformance tests, run with a depth limit of 3 and then with a state limit of 5:
+
+```text
+Bounded: NOT VERIFIED (DepthLimit): no invariant violation in any state at depth <= 3; deeper states were not checked
+states 8, transitions 12, terminal states 0, max depth 3
+
+Bounded: NOT VERIFIED (StateLimit): no invariant violation among the 5 admitted states, which include every state at depth < 2; other reachable states were not checked
+states 5, transitions 6, terminal states 0, max depth 2
+```
+
+the tricky part was making `Bounded` honest in both directions.
+
+my first draft of the rules said states at the depth limit are "not expanded", and also that the run is `Exhausted` if no state at the limit has any successors. you can't implement that. the engine can't know whether a state has successors without calling `Next` on it.
+
+so states at depth D are checked **and expanded**. any unseen successor at D+1 is refused and counted as a cutoff. if the run finishes with at least one cutoff, it's `Bounded`, and the claim "no violation at depth ≤ D" is exact, because bfs admitted every state at that depth. if it finishes with zero cutoffs, the limit didn't matter, and the result is the stronger `Exhausted`. the same grid with a depth limit of 4 does exactly that.
+
+the state limit works the same way. admitting the N-th state doesn't make a run `Bounded`. only trying to admit an unseen (N+1)-th state does. a model with exactly N reachable states comes back `Exhausted`.
+
+`Bounded` has to be backed by evidence: a real, reachable state that the engine generated and refused to admit. hitting a limit isn't evidence on its own.
+
+a few more rules came out of the same thinking:
+
+- **an empty `Init` is a `ModelError`**, not an `Exhausted` run over zero states. "every invariant holds in every state" is vacuously true when there are no states, and it's almost always a mistake in the model.
+- **a terminal state isn't a deadlock.** tlc treats states with no successors as violations by default. i went the other way, because every terminal state in the reference models (a queue with every task acked, a protocol with every message delivered) is a legitimate end. the count is printed in every result so you can see it.
+- **cancellation, deadlines and the memory limit are only checked at fixed points**: once before `Init`, then before dequeues 1, 1+K, 1+2K, with K = 1024 by default. never inside `Init` or `Next`. and the memory limit is best effort. go can't hard-cap the heap, so atlas samples `runtime/metrics` at those points and the heap can overshoot in between.
+
+## the model can break the engine
+
+a model is user code running inside the engine's loop. it can panic, emit after being told to stop, hang on to an `emit` callback and call it later, or mutate a state after handing it over. if any of that silently corrupts the search, atlas could print `Exhausted` for a model it never fully explored, which is the worst bug a model checker can have.
+
+every `Init` and `Next` call gets a small guard:
+
+`check/run.go`
+
+```go
+// guard enforces the emit contract for one Init or Next call.
+type guard struct {
+	active  bool   // false once the call has returned
+	stopped bool   // emit has returned false
+	n       uint32 // valid emissions so far; the next one's edge ordinal
+}
+```
+
+an `emit` after `false` is detected. an `emit` on a callback whose call has already returned is caught on a best-effort basis, if the run is still going when it happens. once any contract violation is detected, it becomes the run's result, and nothing the model does afterwards (another emission, an invariant failure, a panic) replaces it.
+
+one of these was a real hole. the original contract didn't say whether `emit` could be called from inside `AppendKey` or an invariant while the engine was in the middle of handling another emission. the engine encodes keys into one reused buffer, so a nested call overwrote the outer key. on the 3×3 grid, the state `(1,0)` got mistaken for a duplicate of the nested `(0,2)`, and the run reported `Exhausted` with 7 of the 9 reachable states.
+
+that's now a contract violation, detected on every same-goroutine call, with regression tests for the nested call from `AppendKey` and from an invariant. it came out of a review of one of the planned performance changes (more on that below). nothing had been optimized yet. the review just showed that the contract didn't cover that case.
+
+panics get one more distinction. `recover` catches them at the call boundary, but the engine tracks whether model code is actually on the stack:
+
+`check/run.go`
+
+```go
+		if r := recover(); r != nil {
+			if !e.inModel {
+				panic(r) // engine bug: do not disguise it as a model error
+			}
+```
+
+a panic in your `Next` is a `ModelError`. a panic in atlas's own code, even when it happens inside your `emit` call, is re-raised. atlas shouldn't blame the model for its own bugs.
+
+mutation gets a debug mode, `DetectMutation`, which re-encodes every state when it's dequeued and compares it with the key stored when it was admitted. it costs one extra `AppendKey` per expansion, so it's meant for tests.
+
+<div class="callout callout--limit">
+<span class="callout-title">what isn't detected</span>
+<p>an <code>emit</code> from another goroutine, or after the run has finished, is undefined. atlas doesn't detect it, and the results of that run carry no guarantee. a mutation that changes the state but not its key isn't caught either. a model that never returns from <code>Next</code> hangs the run, because nothing can interrupt it. these are model obligations, and the docs say so instead of pretending otherwise.</p>
+</div>
+
+## testing a thing whose job is to be right
+
+a model checker that's wrong does more harm than not having one, because people trust its "no violations". so the tests check meaning, not line coverage.
+
+- **hand-worked tables.** the grid and a water-jug puzzle were worked out by hand before the engine existed. exact state counts, transition counts, duplicates, cutoffs, and traces, across a whole table of depth and state limits. those tables are the conformance tests.
+- **a reference explorer.** a deliberately naive bfs in a test-only package that shares no code with `core` or `check`. for every reference model and for 1,000 random graphs, atlas has to produce the same set of reachable keys, with the same depth for every state.
+- **broken variants.** the three protocol models (a concurrent register, the alternating-bit protocol, a task queue with crashes) each have a deliberately broken version, to prove their invariants can fail at all. a weak invariant passes very easily.
+- **independent replay.** those counterexamples are pinned action by action and replayed by a test helper that doesn't use the engine's own replay, so a bug in replay can't hide itself.
+
+## why is there an optimizer in here?
+
+model checking and constrained optimization have a lot in common. both enumerate a finite space. both need limits, cancellation and statistics. and both have the same reporting problem: a search that stopped early can't claim what a complete one can.
+
+in the optimizer, `Optimal` and `Infeasible` play the role of `Exhausted`. if a search is stopped by an evaluation limit or a canceled context, it reports `BestFound` or `NoneFound`, never `Optimal`, even if it happened to find the optimum.
+
+the current version handles assignment problems. each variable has a finite, ordered domain, and you pick one value per variable:
+
+`optimize/optimize.go`
+
+```go
+type Problem[V any] struct {
+	Vars      []Var[V]
+	Sense     Sense
+	Feasible  func(a []V) bool
+	Objective func(a []V) int64
+
+	Prune func(partial []V) bool
+	Bound func(partial []V) int64
+}
+```
+
+(comments trimmed.) the objective is an `int64` on purpose. floats bring nan, rounding, and summation order, and all of those make "the optimum" fuzzy.
+
+`Sense` has no valid zero value, so you can't forget to say whether you're minimizing or maximizing. and maximization compares directly instead of negating the objective:
+
+```go
+func better(s Sense, v, incumbent int64) bool {
+	if s == Minimize {
+		return v < incumbent
+	}
+	return v > incumbent
+}
+```
+
+negating `math.MinInt64` overflows, so "just negate it" is a bug waiting for the one input that hits it.
+
+enumeration is lexicographic in domain positions, first variable slowest. a candidate replaces the incumbent only if it's **strictly** better, so among ties, the first one enumerated wins. same problem, same answer, every time.
+
+the small knapsack from the docs (three items, capacity 5) shows the two kinds of result:
+
+```text
+Optimal [A B] 7
+8 evaluations, 5 feasible
+BestFound EvaluationLimit [C] 5
+```
+
+the second run was limited to 3 evaluations. it found something, and it says that's all it knows.
+
+### branch-and-bound
+
+exhaustive search costs one evaluation per assignment, which is 2^n for n yes/no items. `Prune` and `Bound` make it branch-and-bound:
+
+- `Prune(partial)` returns true only if *no* completion of that partial assignment is feasible.
+- `Bound(partial)` is optimistic: for maximization, at least as good as every feasible completion.
+
+a subtree is cut when the bound isn't strictly better than the incumbent. because the search order and the tie rule are the same, valid callbacks return the exact same assignment exhaustive search would, not just the same value. the first optimum is never cut, since everything enumerated before it is strictly worse.
+
+the example in the repo is a 10-item knapsack:
+
+```text
+exhaustive:       Optimal [c g h] 60 1024 evaluations
+branch-and-bound: Optimal [c g h] 60 204 evaluations
+```
+
+that's 204 evaluations instead of 1,024 on this one instance, with the same answer. it isn't a wall-clock measurement, and it says nothing about other problems. how much branch-and-bound cuts depends on how good your `Prune` and `Bound` are.
+
+### the catch
+
+that guarantee only holds if `Prune` and `Bound` keep their contracts, and atlas can't check that in general. a bad bound silently cuts the optimum.
+
+on the 3-item knapsack, a `Bound` that always returns 0 (one of the cases in `TestVerifyPruning`) makes the search confidently report `Optimal [C] 5` when the real optimum is `[A B] 7`. that's the worst kind of wrong: it looks like a proof.
+
+so there's a debug mode, `VerifyPruning`, that evaluates every completion of every subtree the search cut. for that same broken bound, it reports:
+
+```text
+ModelError optimize: Bound cut a subtree with a better feasible completion: Bound([false true]) = 0, but feasible completion [false true false] has objective 4
+```
+
+<div class="callout callout--limit">
+<span class="callout-title">what VerifyPruning proves, and what it doesn't</span>
+<p>it checks every cut the search actually made, deterministically. it does not check bound values that didn't cause a cut, and it doesn't check that your callbacks are deterministic. a bound that's wrong at a node the search never asked about passes, and there's a test that pins exactly that. it also costs about as much as exhaustive search, so it's for small instances and tests, not production runs.</p>
+</div>
+
+one honest note on "shared core": right now `optimize` imports neither `core` nor `check`. assignment problems don't need a visited set, because every partial assignment is reached by exactly one path. reusing the core comes in with the other problem shape (optimizing over the reachable states of a model), and that isn't built.
+
+## what the benchmarks actually showed
+
+this is the section where it's easiest to overclaim.
+
+**no optimization has been implemented in atlas.** phase 3 of the roadmap was about building a trusted, reproducible measurement of the unoptimized engine. so there's no speedup to report, and none is claimed.
+
+that isn't because i didn't care about speed. the goal was always to make atlas measurably faster, not to call it fast. but "measurably" is the important word. the baseline benchmarking didn't establish a statistically supported speedup (it measured the same unoptimized engine, so there was nothing to speed up yet), and phase 4, where the actual optimization happens, is still ahead. i'd rather measure first and trust what the numbers say than claim an improvement because it sounds good.
+
+the suite is 21 workloads: grids of up to 2.56 million states, the 8-puzzle (181,440 states), two-phase commit, the alternating-bit protocol, a task queue with a deep counterexample, and a held-out register model that isn't allowed to guide any future optimization. every single run checks its result (status, state count, transitions, and for violations the trace length and a replay). a fast wrong answer fails the run.
+
+the exit criterion was that two independent sets of 10 runs, on the same machine, with the same code, agree within the noise `benchstat` measures.
+
+the first campaign didn't. 3 of the 21 wall-time comparisons came out different at p < 0.05, by 2.8 to 3.7%. same code, same machine. but with 21 uncorrected comparisons, you'd expect at least one flag in about 66% of campaigns even if nothing differed at all (assuming the tests are independent). the test was going to fail most campaigns by chance.
+
+rerunning it until it passed would have been easy, and it would have meant nothing. instead i fixed the decision rule **before** collecting new data: holm-bonferroni correction across all 21 comparisons, family-wise α = 0.05, no workload excluded for being noisy. the benchmark script also got stricter. it shuffles the workload order every round with a recorded seed, refuses to run from a dirty checkout, builds the driver itself under a reduced environment, checks the binary's build metadata against HEAD, and unsets `GOGC`, `GODEBUG`, `GOMEMLIMIT` and `GOMAXPROCS`. and the amendment allowed one campaign, not "as many as it takes".
+
+the second campaign passed, barely:
+
+<div class="facts">
+<div class="fact"><b>420</b><span>runs, all of them passed their semantic check</span></div>
+<div class="fact"><b>0.00288</b><span>smallest p-value</span></div>
+<div class="fact"><b>0.00238</b><span>first holm threshold it had to clear</span></div>
+<div class="fact"><b>+6.6%</b><span>set b slower than set a (geometric mean)</span></div>
+</div>
+
+that's "no significant difference detected", not "the two sets are equivalent". set b was slower in 18 of 21 workloads. the allocations matched to within 0.02%, so the same work was done, and the slowdown started partway through set a and stayed. it looks like the machine's state shifted during the session. since set b always runs after set a, the campaign can't separate that from a set effect.
+
+that result is still useful for later. on this machine (a ryzen 7 7435hs under wsl2), a few percent between two sequential sessions can't be told apart from drift. so a future "this change made it 4% faster" claim wouldn't mean anything unless the two builds are interleaved in one session and compared with a rule fixed in advance.
+
+the profiles did say where the time goes:
+
+- **the visited set dominates.** on the 2.56M-state grid, `Store.Lookup` and `Store.Add` were 81% of the engine's cpu samples. map growth alone was about a quarter.
+- **about 3 allocations per admitted state** come from the engine: the key string, the emit closure, and the guard.
+- **some of the cost is the model's.** in two-phase commit, `fmt.Sprintf` for action labels was 38% of the engine samples, for labels the search throws away. they only matter if there's a trace to print.
+
+## phase 4 hasn't started
+
+phase 4 is where the performance work would happen, and it's not started.
+
+the bottleneck report proposes candidates, each with its evidence and risk: work out why the per-state cost grows at scale, try a different visited-set layout, remove the per-expansion allocations, cut slice regrowth in the store, and decide what the model-side costs in the suite should measure. they're proposals, and nothing has been implemented.
+
+every one of them has to pass every correctness test, show before and after `benchstat` results on the fixed suite, and keep exact identity, shortest traces and determinism. if a change can't keep those, it's rejected, however fast it is.
+
+the allocation one shows why that rule is there. two of the three engine allocations per state are the emit closure and the guard. but the per-call guard is exactly what lets atlas detect a model that keeps an old `emit` and calls it later. reuse one emitter and that detection has to be rebuilt another way. reviewing that candidate is where the nested-emit hole turned up, and nothing from it has been implemented.
+
+## things atlas doesn't do yet
+
+some of these are deliberate, some are just not done:
+
+- **parallel exploration.** a parallel bfs can choose a different parent for the same state depending on scheduling, which changes the trace and can break the shortest-trace guarantee. there are options (level-synchronous with deterministic tie-breaking keeps it), but the decision is open and nothing is built.
+- **state-space reductions** like symmetry and partial-order reduction. possible research items, each needing its own soundness argument first.
+- **liveness and temporal logic.** not planned. atlas checks safety invariants over single states.
+- **optimizing over reachable states**, a proven bound for interrupted optimizer runs, and best-first search. all deferred.
+- **a faster visited set.** the current `map[string]StateID` is the simplest correct design, picked on purpose so there would be something trustworthy to measure against.
+
+the versioning reflects that. under the v0.x policy, patch releases don't break the covered api, and a change to a documented verdict, trace or counted statistic for the same model counts as a breaking change even if no signature changes. but `core.Store`, `core.Queue` and the related ids are exported only because `check` uses them, and they're explicitly *not* covered, because phase 4 might replace them. the package docs say that up front instead of pretending they're stable.
+
+## what building it taught me
+
+the bfs loop in atlas fits on one screen. if model checking were just "visit every state", this would have been a short project.
+
+most of the work went into making every result mean exactly what it says. what counts as the same state. what `Bounded` is allowed to claim. what happens when the model misbehaves. what a benchmark result actually supports. a lot of the repository is documents (semantics, decisions, conformance tables) written before the code they describe, and some of them are corrections: a rule that couldn't be implemented, a contract with a hole, a benchmark criterion that would have failed by chance.
+
+and the honest version of the performance story is that there isn't one yet. there's a baseline measured under a rule fixed before the data, a list of where the time goes, and a rule for what has to be true before anyone gets to say "faster".
+
+that's where atlas is right now.
+
+## if you're not a tech person
+
+remember the two processes adding 1 to a counter? imagine two people updating the same shared spreadsheet cell. both open it and see 0. both add 1 and save. the cell says 1, not 2.
+
+that only happens if they open it at nearly the same moment, which is exactly why it's so hard to catch by trying it a few times. most of the time it works fine.
+
+**atlas is a tool that tries every possible timing**, on a small simplified description of the system, and if any of them goes wrong, it shows you the exact sequence of steps that leads there.
+
+that's probably the simplest way i can explain the entire project.
+
+thanks for reading.
